@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="NeRF Plant Phenotyping banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b2d1f"/>
+      <stop offset="45%" stop-color="#145a3d"/>
+      <stop offset="100%" stop-color="#1d7a52"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b9ffcf" stop-opacity="0.70"/>
+      <stop offset="100%" stop-color="#7de2b8" stop-opacity="0.18"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="360" fill="url(#bg)" rx="20"/>
+  <circle cx="1060" cy="120" r="150" fill="#8effc2" opacity="0.18" filter="url(#soft)"/>
+  <circle cx="980" cy="260" r="120" fill="#d7ffe8" opacity="0.10" filter="url(#soft)"/>
+
+  <path d="M0 280 C180 230, 280 320, 430 276 C560 238, 680 316, 860 266 C980 232, 1110 280, 1280 240 L1280 360 L0 360 Z"
+        fill="url(#accent)" opacity="0.75"/>
+
+  <g opacity="0.22">
+    <line x1="120" y1="70" x2="250" y2="150" stroke="#d8ffe8" stroke-width="2"/>
+    <line x1="250" y1="150" x2="330" y2="110" stroke="#d8ffe8" stroke-width="2"/>
+    <line x1="250" y1="150" x2="340" y2="210" stroke="#d8ffe8" stroke-width="2"/>
+    <circle cx="120" cy="70" r="5" fill="#e8fff3"/>
+    <circle cx="250" cy="150" r="6" fill="#e8fff3"/>
+    <circle cx="330" cy="110" r="5" fill="#e8fff3"/>
+    <circle cx="340" cy="210" r="5" fill="#e8fff3"/>
+  </g>
+
+  <g fill="#ecfff5">
+    <text x="72" y="132" font-family="Avenir Next, Segoe UI, Helvetica, Arial, sans-serif" font-size="46" font-weight="700" letter-spacing="1.2">
+      NeRF Plant 3D Reconstruction
+    </text>
+    <text x="72" y="186" font-family="Avenir Next, Segoe UI, Helvetica, Arial, sans-serif" font-size="40" font-weight="600" letter-spacing="0.8">
+      &amp; Phenotyping Pipeline
+    </text>
+    <text x="72" y="238" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="24" opacity="0.92">
+      基于 Instant-NGP 与 Point-NeRF 的作物三维重建与表型提取
+    </text>
+  </g>
+
+  <g>
+    <rect x="74" y="268" width="184" height="42" rx="21" fill="#ecfff5" opacity="0.90"/>
+    <text x="97" y="296" font-family="Avenir Next, Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#0f4e33">
+      Research Draft
+    </text>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2026.3.2)  2 MAR 2026 23:22
+This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2026.3.2)  2 MAR 2026 23:36
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -589,31 +589,57 @@ Package hyperref Info: Link coloring OFF on input line 12.
 \openout3 = `nerf_plant_reconstruction.out'.
 
 
+Package fontspec Info: 
+(fontspec)             Script 'CJK' not explicitly supported within font
+(fontspec)             'FandolFang-Regular'. Check the typeset output, and if
+(fontspec)             it is okay then ignore this warning. Otherwise a
+(fontspec)             different font should be chosen.
+
+
+Package fontspec Info: 
+(fontspec)             Font family 'FandolFang-Regular(0)' created for font
+(fontspec)             'FandolFang-Regular' with options
+(fontspec)             [Script={CJK},Extension={.otf}].
+(fontspec)              
+(fontspec)              This font family consists of the following NFSS
+(fontspec)             series/shapes:
+(fontspec)              
+(fontspec)             - 'normal' (m/n) with NFSS spec.:
+(fontspec)             <->"[FandolFang-Regular.otf]/OT:script=hani;language=dfl
+t;"
+
+
 
 [1
 
 ]
 
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+
 LaTeX Font Info:    Font shape `TU/FandolSong-Regular(0)/m/sl' in size <12> not
  available
 (Font)              Font shape `TU/FandolSong-Regular(0)/m/it' tried instead on
- input line 44.
-[2] (./nerf_plant_reconstruction.aux)
+ input line 75.
+[2]
+
+[3] (./nerf_plant_reconstruction.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2022/07/14>
  ***********
 Package rerunfilecheck Info: File `nerf_plant_reconstruction.out' has not chang
 ed.
-(rerunfilecheck)             Checksum: CC13B1ADC30D03610768C714301C6AA3;520.
+(rerunfilecheck)             Checksum: ABEA027922429D8894FE0314E201464E;1219.
  ) 
 Here is how much of TeX's memory you used:
- 14980 strings out of 473832
- 336603 string characters out of 5729482
- 755122 words of memory out of 5000000
- 37870 multiletter control sequences out of 15000+600000
- 565797 words of font info for 79 fonts, out of 8000000 for 9000
+ 15028 strings out of 473832
+ 338895 string characters out of 5729482
+ 754937 words of memory out of 5000000
+ 37910 multiletter control sequences out of 15000+600000
+ 565845 words of font info for 85 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 93i,6n,112p,399b,341s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 93i,9n,112p,399b,394s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on nerf_plant_reconstruction.pdf (2 pages).
+Output written on nerf_plant_reconstruction.pdf (3 pages).

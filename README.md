@@ -1,0 +1,60 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="NeRF Plant 3D Reconstruction and Phenotyping" width="100%" />
+</p>
+
+<p align="center">
+  <a href="./README.md"><img alt="English" src="https://img.shields.io/badge/Language-English-1f6f4a?style=for-the-badge"></a>
+  <a href="./README.zh-CN.md"><img alt="中文" src="https://img.shields.io/badge/语言-中文-2b8a5a?style=for-the-badge"></a>
+</p>
+
+# NeRF Plant 3D Reconstruction & Phenotyping
+
+A research draft and reproducible manuscript workflow for crop 3D reconstruction and phenotypic trait extraction, aligned with:
+- [NVlabs/instant-ngp](https://github.com/NVlabs/instant-ngp)
+- [Xharlie/pointnerf](https://github.com/Xharlie/pointnerf)
+
+## What This Repo Contains
+
+- A polished Chinese LaTeX manuscript (`manuscript/nerf_plant_reconstruction.tex`)
+- Compiled PDF output (`manuscript/nerf_plant_reconstruction.pdf`)
+- Packaged archive for sharing (`manuscript_package.tar.gz`)
+- Bilingual project documentation (this file + Chinese version)
+
+## Method Positioning
+
+This draft now maps the pipeline to practical open-source implementation details:
+- **Instant-NGP branch**: hash-encoded NeRF for fast training/inference, COLMAP-to-`transforms.json` preprocessing, and density-field export.
+- **Point-NeRF branch**: neural point representation for sparse-view and heavy-occlusion scenes, with point pruning/growing for geometry refinement.
+
+## Project Structure
+
+```text
+.
+├── assets/
+│   └── banner.svg
+├── manuscript/
+│   ├── nerf_plant_reconstruction.tex
+│   ├── nerf_plant_reconstruction.pdf
+│   ├── nerf_plant_reconstruction.aux
+│   ├── nerf_plant_reconstruction.log
+│   └── nerf_plant_reconstruction.out
+└── manuscript_package.tar.gz
+```
+
+## Build the Manuscript
+
+```bash
+cd manuscript
+/Library/TeX/texbin/xelatex -interaction=nonstopmode nerf_plant_reconstruction.tex
+/Library/TeX/texbin/xelatex -interaction=nonstopmode nerf_plant_reconstruction.tex
+```
+
+## Notes on Upstream Projects
+
+- `instant-ngp` is used as the main engineering baseline for real-time NeRF workflows.
+- `pointnerf` is used as an enhancement reference for sparse-view robustness.
+- Please follow each upstream repository license and usage restrictions (Point-NeRF is marked for non-commercial use in its repository).
+
+## Author
+
+- Xiaoran Li (李肖然)

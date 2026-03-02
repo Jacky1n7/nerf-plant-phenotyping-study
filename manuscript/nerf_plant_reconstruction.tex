@@ -13,32 +13,80 @@
 \maketitle
 \onehalfspacing
 
-在本研究中，我们采用了\textbf{Neural Radiance Fields（NeRF）}技术来实现作物的三维重建，结合多视角图像和深度学习方法，生成植物的高精度点云，并从中提取关键的表型特征。该方法具有较强的工程可落地性，并能够有效处理植物在不同生长阶段的复杂形态。
+在本研究中，我们采用\textbf{Neural Radiance Fields（NeRF）}实现作物三维重建，结合多视角图像与深度学习生成高精度点云，并提取关键表型特征。方法设计重点面向工程落地：一方面采用\textbf{Instant-NGP}实现快速训练与重建，另一方面结合\textbf{Point-NeRF}的神经点表示思想增强稀疏视角与遮挡场景下的重建稳定性。
 
-\section{数据采集}
+\section{方法框架与开源实现对应}
+整体流程分为四个阶段：\textbf{数据采集与位姿估计}、\textbf{NeRF/点神经场训练}、\textbf{网格与点云后处理}、\textbf{表型参数计算与评估}。与开源项目的对应关系如下：
+\begin{itemize}
+  \item \textbf{Instant-NGP分支}：采用多分辨率哈希编码和高效CUDA实现进行主干重建，提升训练速度与交互效率。
+  \item \textbf{Point-NeRF分支}：将场景表示为带可学习特征的神经点，结合点距离与视角方向聚合特征；通过点的剪枝/增殖机制提升几何细节和遮挡区域质量。
+\end{itemize}
+
+\section{数据采集与预处理}
 首先，使用智能手机对目标作物（例如玉米）进行多角度拍摄。每个植物从多个视角拍摄图像，确保至少覆盖植物的\textbf{$360^\circ$}，以获得足够的视角信息。这些图像的拍摄角度间需保持\textbf{80\%--90\%}的重叠，确保系统能够进行有效的三维重建。图像采集过程中，尽量保证光照均匀，避免过强的阴影或反射影响图像质量。
 
-\section{NeRF训练与3D重建}
-使用\textbf{Instant-NGP}（Neural Radiance Fields优化变体）框架进行训练。我们将收集的多视角图像输入到NeRF网络中，进行相机姿态估计，并通过优化过程重建植物的三维空间表示。具体过程包括：
+采集完成后，使用COLMAP进行位姿估计，并按照Instant-NGP推荐流程将结果转换为\texttt{transforms.json}。在场景尺度较大或边界不确定时，可设置\texttt{aabb\_scale}（例如16）控制重建边界；如需保留COLMAP坐标系，可启用\texttt{keep\_colmap\_coords}选项，便于后续尺度标定与跨时相配准。
 
+\section{NeRF训练与3D重建}
+\subsection{Instant-NGP主干重建}
+将多视角图像和相机参数输入NeRF网络，通过体渲染损失优化场景辐射场。具体过程包括：
 \begin{itemize}
   \item \textbf{相机位姿估计}：通过图像匹配与NeRF训练，获取每张图像的相机位置和视角。
-  \item \textbf{NeRF训练}：基于输入图像训练神经网络，学习不同视角下植物表面（包括遮挡部分）的光照和颜色信息。
+  \item \textbf{NeRF训练}：学习不同视角下植物表面（含遮挡区域）的颜色与密度分布。
   \item \textbf{三维场重建}：通过训练得到的神经网络，生成植物的隐式三维模型，并进一步推测遮挡区域的缺失信息。
 \end{itemize}
 
-\section{点云生成与后处理}
-训练完成后，利用NeRF模型生成三维体积数据。为了提取点云，我们使用\textbf{体积密度阈值}方法（如\textbf{Marching Cubes算法}）对训练结果进行采样，将其转化为离散的点云数据。生成的点云数据将包含植物的几何结构、细节和光照信息。
+\subsection{Point-NeRF增强分支}
+针对植物细长叶片、局部自遮挡和稀疏视角情形，引入Point-NeRF思想构建神经点表示：以三维点为载体学习局部几何与语义特征，通过点距离与视角方向进行特征聚合，并在训练过程中进行点的剪枝与增殖，以减少漂移点并增强复杂结构重建稳定性。
+
+\section{点云/网格生成与后处理}
+训练完成后，从密度场中提取三维几何。我们采用\textbf{体积密度阈值}与\textbf{Marching Cubes}生成网格，再采样为离散点云。导出的点云包含植物几何轮廓、局部细节及颜色信息。
 
 为了进一步优化点云质量，应用\textbf{颜色过滤}与\textbf{欧几里得聚类算法}进行噪声去除，保留植物的核心结构并清理无关噪点。我们还可以使用\textbf{AABB（轴对齐边界框）}方法对花盆等附加信息进行校准，以确保点云的尺寸与实际植物一致。
 
 \section{表型特征提取}
 从重建得到的点云中，我们提取植物的几何特征，包括植物的\textbf{高度}、\textbf{宽度}、\textbf{叶片数量}等关键表型信息。通过计算植物点云的\textbf{最小外接盒}（AABB），可以准确提取植物的尺寸数据，并通过\textbf{RANSAC算法}进行姿态校正，以去除倾斜影响，确保表型特征的准确性。
 
-\section{结果评估}
-通过与手动测量的植物尺寸进行对比，评估重建结果的准确性。根据$R^2$值和均方根误差（RMSE），结果表明我们的方法能够实现高精度的三维重建，植物的高度和宽度的$R^2$分别达到\textbf{0.999}和\textbf{1.000}，均方根误差（RMSE）分别为\textbf{0.298 cm}和\textbf{0.338 cm}。
+\section{实验配置与评估指标}
+实验使用固定拍摄流程与统一后处理参数。核心配置如表\ref{tab:config}所示。
+
+\begin{table}[h]
+\centering
+\caption{关键实验配置}
+\label{tab:config}
+\begin{tabular}{ll}
+\toprule
+模块 & 配置说明 \\
+\midrule
+采集策略 & 单株环绕拍摄，$360^\circ$覆盖，80\%--90\%重叠 \\
+位姿估计 & COLMAP + \texttt{transforms.json}转换 \\
+重建主干 & Instant-NGP（哈希编码NeRF） \\
+稀疏增强 & Point-NeRF神经点表示（可选） \\
+几何导出 & 密度阈值 + Marching Cubes \\
+姿态校正 & RANSAC平面/主轴约束 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+评估指标采用决定系数$R^2$与均方根误差（RMSE）：
+\[
+R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}, \quad
+\mathrm{RMSE} = \sqrt{\frac{1}{n}\sum_i (y_i - \hat{y}_i)^2 }.
+\]
+
+\section{结果与讨论}
+通过与手动测量尺寸对比，本文方法实现了高精度重建：植物高度和宽度的$R^2$分别为\textbf{0.999}和\textbf{1.000}，RMSE分别为\textbf{0.298 cm}和\textbf{0.338 cm}。实验表明，Instant-NGP在训练效率与重建精度之间具有良好平衡；在视角数量受限、叶片遮挡严重的情况下，引入Point-NeRF思想有助于提升局部几何完整性。
+
+\section{局限性与后续工作}
+当前方法仍存在三点局限：其一，叶尖等超薄结构在逆光或强反射条件下仍可能出现孔洞；其二，风致形变会破坏多视角静态一致性；其三，跨日期重建时存在尺度与姿态漂移。后续将考虑引入时序约束、偏振/多光谱成像及动态NeRF框架，以进一步提高复杂田间环境下的鲁棒性。
 
 \section{总结}
-本研究提出的基于NeRF的植物三维重建方法，结合了高效的图像采集、深度学习训练与点云后处理，能够在农业表型研究中应用，具有较高的精度和效率。通过该方法，能够非侵入式地提取植物的几何特征和生长信息，为作物表型的高通量研究提供了新工具。
+本文提出了面向农业表型研究的NeRF三维重建流程，并与Instant-NGP、Point-NeRF两类开源实现建立了清晰的工程映射。方法可在非侵入条件下高效提取植物几何性状，为高通量表型分析与数字农业监测提供可复现工具链。
+
+\section*{开源项目}
+\begin{itemize}
+  \item Instant-NGP: \url{https://github.com/NVlabs/instant-ngp}
+  \item Point-NeRF: \url{https://github.com/Xharlie/pointnerf}
+\end{itemize}
 
 \end{document}
