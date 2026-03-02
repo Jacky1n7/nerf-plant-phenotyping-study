@@ -6,7 +6,7 @@
 \usepackage{hyperref}
 \usepackage{longtable}
 
-\title{方法：基于NeRF的植物三维重建与表型提取（操作手册版）}
+\title{方法：基于NeRF的植物三维重建与表型提取}
 \author{李肖然}
 \date{March 2, 2026}
 
@@ -14,18 +14,18 @@
 \maketitle
 \onehalfspacing
 
-在本研究中，我们采用\textbf{Neural Radiance Fields（NeRF）}实现作物三维重建，结合多视角图像与深度学习生成高精度点云，并提取关键表型特征。本文档以\textbf{可复现}为核心目标，给出可执行的训练、后处理与质检流程。
+本文提出一套面向农业表型研究的三维重建流程。方法以\textbf{Neural Radiance Fields（NeRF）}为核心，通过多视角图像重建植物的连续几何与外观信息，再将隐式场转为结构化点云用于表型计算。文档以\textbf{可复现与可执行}为目标，提供从数据采集到结果评估的完整操作路径。
 
 \section{方法框架与开源实现对应}
-整体流程分为四个阶段：\textbf{数据采集与位姿估计}、\textbf{NeRF/点神经场训练}、\textbf{网格与点云后处理}、\textbf{表型参数计算与评估}。与开源项目的对应关系如下：
+整体流程包括四个阶段：\textbf{数据采集与位姿估计}、\textbf{NeRF/点神经场训练}、\textbf{网格与点云后处理}、\textbf{表型参数计算与评估}。与开源项目的对应关系如下：
 \begin{itemize}
-  \item \textbf{Instant-NGP分支}：多分辨率哈希编码 + 高效CUDA实现，作为主干重建方案。
-  \item \textbf{Point-NeRF分支}：神经点表示、点特征聚合、点剪枝/增殖，作为稀疏视角增强方案。
+  \item \textbf{Instant-NGP分支}：采用多分辨率哈希编码与高效CUDA实现，作为主干重建方案，侧重训练效率与交互性。
+  \item \textbf{Point-NeRF分支}：采用神经点表示与点特征聚合机制，适用于稀疏视角和强遮挡场景下的结构补强。
 \end{itemize}
 
 \section{数据采集与预处理}
 \subsection{采集规范}
-使用智能手机对目标作物（如玉米）进行环绕拍摄，要求至少覆盖\textbf{$360^\circ$}，相邻图像重叠\textbf{80\%--90\%}，拍摄期间保持光照稳定并尽量减小叶片摆动。
+使用智能手机对单株作物（如玉米）进行环绕拍摄，保证至少\textbf{$360^\circ$}覆盖；相邻图像重叠率建议为\textbf{80\%--90\%}。采集过程中应尽量保持光照均匀，避免高光反射和强阴影，同时减少风引起的叶片位移。
 
 \subsection{目录组织（建议）}
 \begin{verbatim}
@@ -49,51 +49,51 @@ python scripts/colmap2nerf.py \
 关键参数说明：
 \begin{itemize}
   \item \texttt{--run\_colmap}：自动执行特征提取与位姿估计。
-  \item \texttt{--aabb\_scale}：控制重建边界盒尺度，室外或大场景建议8--32。
-  \item \texttt{--keep\_colmap\_coords}（可选）：保留COLMAP坐标系，便于跨时相配准。
+  \item \texttt{--aabb\_scale}：设置重建包围盒尺度，复杂场景建议在8--32之间调参。
+  \item \texttt{--keep\_colmap\_coords}（可选）：保留COLMAP坐标系，便于跨时相配准与尺度对齐。
 \end{itemize}
 
-\section{NeRF/点神经场训练（操作手册）}
+\section{NeRF/点神经场训练（操作流程）}
 \subsection{A. Instant-NGP主干训练}
 \textbf{步骤1：启动训练}
 \begin{verbatim}
 ./build/testbed --scene data/maize_plant_01 --mode nerf
 \end{verbatim}
 
-\textbf{步骤2：训练阶段建议}
+\textbf{步骤2：分阶段观察与调参}
 \begin{itemize}
-  \item 前2k步观察相机位姿与场景包围盒是否正确；若植物截断，增大\texttt{aabb\_scale}并重建数据。
-  \item 训练10k步后检查叶片轮廓是否出现明显双层重影；若有重影，优先排查输入图像模糊和风致形变。
-  \item 训练到30k--50k步通常可达到稳定结果；以验证视角PSNR收敛和平滑渲染效果作为停止依据。
+  \item \textbf{0--2k步}：检查相机轨迹、场景方向与包围盒范围。若植物被裁切，优先增大\texttt{aabb\_scale}后重建。
+  \item \textbf{2k--10k步}：观察叶片轮廓是否稳定。若出现双层重影，优先排查图像模糊、风致形变与位姿偏差。
+  \item \textbf{10k--50k步}：关注验证视角下PSNR与视觉质量是否收敛。一般在30k--50k步可获得可用结果。
 \end{itemize}
 
-\textbf{步骤3：保存快照（可复现）}
+\textbf{步骤3：快照管理（复现要求）}
 \begin{itemize}
-  \item 每5k步导出一次snapshot，命名如\texttt{snap\_005k.ingp}、\texttt{snap\_010k.ingp}。
-  \item 记录每个snapshot对应的训练步数、PSNR和观察结论（叶片完整性/噪点水平）。
+  \item 每5k步导出一次snapshot（如\texttt{snap\_005k.ingp}、\texttt{snap\_010k.ingp}）。
+  \item 同步记录训练步数、PSNR、视觉观察结论（叶片连续性、背景噪点水平）。
 \end{itemize}
 
 \subsection{B. Point-NeRF增强训练（可选）}
-当出现\textbf{稀疏视角、重遮挡、细长叶片断裂}时，启用Point-NeRF分支进行补强。
+当场景存在\textbf{视角稀疏、遮挡严重、细长叶片断裂}等问题时，建议启用Point-NeRF分支进行补强。
 
-\textbf{步骤1：初始化神经点}
+\textbf{步骤1：神经点初始化}
 \begin{itemize}
-  \item 使用COLMAP稀疏点云或MVS结果初始化神经点。
-  \item 按Point-NeRF仓库流程准备初始化权重目录（如\texttt{checkpoints/init}）。
+  \item 使用COLMAP稀疏点云或MVS结果作为初始点集。
+  \item 按Point-NeRF仓库流程配置初始化权重目录（如\texttt{checkpoints/init}）。
 \end{itemize}
 
 \textbf{步骤2：训练脚本模板}
-Point-NeRF仓库提供脚本模板（可按场景改路径）：
+Point-NeRF仓库提供脚本模板（按数据路径与实验名修改）：
 \begin{verbatim}
 bash dev_scripts/w_colmap_n360/col_chair.sh
 \end{verbatim}
-对于新数据，建议复制该脚本并仅修改：数据路径、实验名、训练轮数、采样数量。
+针对新数据，建议复制模板脚本并仅修改：数据目录、实验名称、训练轮数、采样数量。
 
 \textbf{步骤3：稳定性建议}
 \begin{itemize}
-  \item 若使用较新PyTorch/CUDA组合，按Point-NeRF说明将\texttt{wcoord\_query}设为\texttt{-1}可规避部分查询异常。
-  \item 先进行短训（例如10\%训练轮）验证loss下降趋势，再启动全量训练。
-  \item 使用固定随机种子，保证不同实验之间可对比。
+  \item 在较新PyTorch/CUDA组合下，可按Point-NeRF说明将\texttt{wcoord\_query}设为\texttt{-1}以规避部分查询异常。
+  \item 先执行短程训练（约总轮数的10\%）确认loss下降趋势，再运行完整训练。
+  \item 固定随机种子，保证不同实验的可比性与可复现性。
 \end{itemize}
 
 \subsection{C. 训练质检清单（必须执行）}
@@ -101,42 +101,42 @@ bash dev_scripts/w_colmap_n360/col_chair.sh
 \toprule
 检查项 & 合格标准 \\
 \midrule
-相机轨迹覆盖 & 相机环绕完整，无明显集中在单侧的采样盲区 \\
-几何连贯性 & 茎秆连续、叶片主脉不出现大面积断裂 \\
-背景抑制 & 花盆外背景噪点可通过阈值/聚类分离，不与主体粘连 \\
-多视角一致性 & 旋转观察时无明显纹理漂移或“漂浮点” \\
+相机轨迹覆盖 & 相机路径形成完整环绕，无明显单侧盲区 \\
+几何连贯性 & 茎秆连续，叶片主脉无大面积断裂 \\
+背景抑制 & 背景噪点可被阈值或聚类分离，且不与主体粘连 \\
+多视角一致性 & 旋转观察时无明显纹理漂移与漂浮伪点 \\
 \bottomrule
 \end{longtable}
 
-\section{网格与点云后处理（操作手册）}
+\section{网格与点云后处理（操作流程）}
 \subsection{A. 网格导出}
-在Instant-NGP中导出网格（Marching Cubes）：
+在Instant-NGP中采用Marching Cubes导出网格，建议按“低分辨率试探、再高分辨率固化”策略执行：
 \begin{itemize}
-  \item 导出分辨率建议从\textbf{256}起步，精细场景可提升到\textbf{512}。
-  \item 密度阈值采用“由低到高”扫描策略：先保留整体形态，再逐步抑制背景伪表面。
-  \item 每次导出记录参数：分辨率、阈值、导出时间、主观质量评分。
+  \item 初始分辨率建议\textbf{256}，细节不足时提升至\textbf{512}。
+  \item 密度阈值采用“由低到高”的扫描方式：先保证主体完整，再逐步抑制背景伪表面。
+  \item 每次导出记录参数（分辨率、阈值、导出时长、主观质量评分），便于回溯。
 \end{itemize}
 
-\subsection{B. 点云采样与标准化}
-将网格统一采样为点云（例如50k--200k点，按植株复杂度确定），并执行尺度标准化：
+\subsection{B. 点云采样与尺度标准化}
+将网格统一采样为点云（建议50k--200k点，按植株复杂度调整），并通过实物参考进行尺度校正：
 \[
 s = \frac{d_{\mathrm{true}}}{d_{\mathrm{est}}}, \quad \mathbf{p}_i' = s\,\mathbf{p}_i
 \]
-其中$ d_{\mathrm{true}} $为实测参照物尺寸（如花盆口径），$ d_{\mathrm{est}} $为点云测得尺寸。
+其中，$d_{\mathrm{true}}$为实测参考尺寸（例如花盆口径），$d_{\mathrm{est}}$为点云对应测量值。
 
-\subsection{C. 去噪与分割（推荐参数范围）}
-按以下顺序处理：
+\subsection{C. 去噪与主体分割（推荐参数）}
+建议按以下顺序处理：
 \begin{itemize}
   \item \textbf{统计离群点滤波}：邻域点数$k=20\sim30$，标准差阈值$1.0\sim2.0$。
-  \item \textbf{颜色过滤}：在HSV空间过滤土壤/背景色；建议基于样本统计先做一次阈值标定。
-  \item \textbf{欧几里得聚类}：聚类半径$2\sim8$ mm，最小簇点数$300\sim1000$；保留最大植物主体簇。
+  \item \textbf{颜色过滤}：在HSV空间过滤土壤与背景色，建议先基于样本统计完成阈值标定。
+  \item \textbf{欧几里得聚类}：聚类半径$2\sim8$ mm，最小簇点数$300\sim1000$，保留最大植物主体簇。
 \end{itemize}
 
 \subsection{D. 姿态校正与AABB提取}
 \begin{itemize}
   \item 使用RANSAC拟合地面或花盆上沿平面，估计重力方向并旋正点云。
-  \item 在旋正后的坐标系中计算AABB，得到植株高度、宽度、厚度等尺寸。
-  \item 若植株倾斜明显，先执行主轴对齐（PCA）再计算AABB，避免高度低估。
+  \item 在旋正后的坐标系中计算AABB，得到植株高度、宽度与厚度等尺寸。
+  \item 对倾斜明显样本，先执行PCA主轴对齐再计算AABB，以避免高度低估。
 \end{itemize}
 
 \subsection{E. 后处理质检清单（必须执行）}
@@ -144,15 +144,15 @@ s = \frac{d_{\mathrm{true}}}{d_{\mathrm{est}}}, \quad \mathbf{p}_i' = s\,\mathbf
 \toprule
 检查项 & 合格标准 \\
 \midrule
-主体完整性 & 主茎与主要叶片均保留，未被聚类误删 \\
-背景残留 & 花盆外漂浮噪点占比低且不影响AABB边界 \\
-尺度一致性 & 同批次植株在相同参照物下尺度误差可控 \\
-姿态一致性 & 旋正后不同样本“竖直方向”定义一致 \\
+主体完整性 & 主茎与主要叶片完整保留，无明显误删 \\
+背景残留 & 漂浮噪点占比低，不影响AABB边界 \\
+尺度一致性 & 同批样本在统一参考物下尺度误差可控 \\
+姿态一致性 & 旋正后“竖直方向”定义一致，可横向比较 \\
 \bottomrule
 \end{longtable}
 
 \section{表型特征提取}
-从重建点云中提取\textbf{高度}、\textbf{宽度}、\textbf{叶片数量}等关键表型信息。高度定义为旋正后AABB在竖直轴的尺寸；宽度定义为水平主轴最大跨度。叶片计数建议结合骨架化与人工复核，避免叶片重叠导致误计数。
+从重建点云中提取\textbf{高度}、\textbf{宽度}、\textbf{叶片数量}等关键表型指标。高度定义为旋正后AABB在竖直轴方向的尺寸；宽度定义为水平主轴最大跨度。叶片计数建议采用“自动骨架化 + 人工复核”联合流程，以降低重叠叶片导致的误计数。
 
 \section{实验配置与评估指标}
 核心配置如表\ref{tab:config}所示。
@@ -182,13 +182,13 @@ R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}, \quad
 \]
 
 \section{结果与讨论}
-通过与手动测量尺寸对比，本文方法实现了高精度重建：植物高度和宽度的$R^2$分别为\textbf{0.999}和\textbf{1.000}，RMSE分别为\textbf{0.298 cm}和\textbf{0.338 cm}。实验表明，Instant-NGP在训练效率与重建精度之间具有良好平衡；在视角数量受限、叶片遮挡严重的情况下，引入Point-NeRF思想有助于提升局部几何完整性。
+与人工测量对比结果显示，本方法可实现高精度重建：植物高度与宽度的$R^2$分别为\textbf{0.999}和\textbf{1.000}，RMSE分别为\textbf{0.298 cm}和\textbf{0.338 cm}。实验表明，Instant-NGP在效率与精度之间具有良好平衡；在视角不足与遮挡较强场景下，引入Point-NeRF思想可进一步改善局部几何完整性。
 
 \section{局限性与后续工作}
-当前方法仍存在三点局限：其一，叶尖等超薄结构在逆光或强反射条件下仍可能出现孔洞；其二，风致形变会破坏多视角静态一致性；其三，跨日期重建时存在尺度与姿态漂移。后续将考虑引入时序约束、偏振/多光谱成像及动态NeRF框架，以进一步提高复杂田间环境下的鲁棒性。
+当前流程仍存在三类限制：其一，叶尖等超薄结构在逆光或强反射条件下仍可能出现孔洞；其二，风致形变会削弱多视角静态一致性；其三，跨日期重建可能出现尺度与姿态漂移。后续将尝试引入时序约束、偏振/多光谱成像与动态NeRF框架，以提升田间复杂环境下的鲁棒性。
 
 \section{总结}
-本文构建了可复现的NeRF植物重建操作手册，并与Instant-NGP、Point-NeRF两类开源实现建立工程映射。流程可在非侵入条件下高效提取植物几何性状，为高通量表型分析与数字农业监测提供可执行工具链。
+本文给出了面向农业表型研究的NeRF三维重建操作流程，并与Instant-NGP、Point-NeRF开源实现建立了清晰映射。该流程可在非侵入条件下稳定提取植物几何性状，为高通量表型分析与数字农业监测提供可执行工具链。
 
 \section*{开源项目}
 \begin{itemize}
