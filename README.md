@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="./README.md"><img alt="English" src="https://img.shields.io/badge/Language-English-1f6f4a?style=for-the-badge"></a>
-  <a href="./README.zh-CN.md"><img alt="中文" src="https://img.shields.io/badge/语言-中文-2b8a5a?style=for-the-badge"></a>
+  <a href="./README.md"><img src="assets/lang-en.svg" alt="English" width="180" height="36"/></a>
+  <a href="./README.zh-CN.md"><img src="assets/lang-zh.svg" alt="中文" width="180" height="36"/></a>
 </p>
 
 # NeRF Plant 3D Reconstruction & Phenotyping
@@ -31,7 +31,9 @@ This draft now maps the pipeline to practical open-source implementation details
 ```text
 .
 ├── assets/
-│   └── banner.svg
+│   ├── banner.svg
+│   ├── lang-en.svg
+│   └── lang-zh.svg
 ├── manuscript/
 │   ├── nerf_plant_reconstruction.tex
 │   ├── nerf_plant_reconstruction.pdf
