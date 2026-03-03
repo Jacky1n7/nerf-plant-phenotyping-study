@@ -14,6 +14,7 @@ python_bin = "python"
 [pipeline]
 default_stages = [
   "prepare_dirs",
+  "extract_video_frames",
   "colmap",
   "colmap_to_text",
   "transforms",
@@ -25,9 +26,17 @@ default_stages = [
 [stages.prepare_dirs]
 enabled = true
 commands = [
+  "mkdir -p {video_dir}",
   "mkdir -p {workspace_dir}",
   "mkdir -p {run_dir}",
   "mkdir -p {outputs_dataset_dir}",
+]
+
+[stages.extract_video_frames]
+enabled = true
+required_tools = ["ffmpeg"]
+commands = [
+  "{python_bin} scripts/extract_video_frames.py --video-dir {video_dir} --input-video {video_input} --output-dir {images_dir} --fps {frame_fps} --start-time {video_start_time} --end-time {video_end_time} --max-frames {frame_max_count} --jpeg-quality {jpeg_quality} --resize-width {resize_width} --resize-height {resize_height} --filename-prefix {frame_prefix} --start-number {frame_start_number} --overwrite {overwrite_frames}",
 ]
 
 [stages.colmap]

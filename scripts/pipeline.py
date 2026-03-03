@@ -14,6 +14,7 @@ import tomllib
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".m4v"}
 
 
 def load_toml(path: Path) -> dict:
@@ -53,22 +54,41 @@ def resolve_dataset_name(config: dict, dataset_arg: str | None) -> str:
     return config.get("project", {}).get("default_dataset", "maize_plant_01")
 
 
+def bool_to_text(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def text_to_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[str, str]:
     paths = config.get("paths", {})
     dataset = dataset_cfg.get("dataset", {})
+    video = dataset_cfg.get("video", {})
     recon = dataset_cfg.get("reconstruction", {})
     traits = dataset_cfg.get("traits", {})
 
+    video_dir = as_abs(dataset.get("video_dir", f"data/raw/{dataset_name}/video"))
     images_dir = as_abs(dataset.get("images_dir", f"data/raw/{dataset_name}/images"))
     workspace_dir = as_abs(dataset.get("workspace_dir", f"data/processed/{dataset_name}"))
     outputs_dataset_dir = as_abs(dataset.get("outputs_dataset_dir", f"outputs/{dataset_name}"))
     run_dir = as_abs(Path(paths.get("runs_dir", "outputs/runs")) / dataset_name)
 
     keep_colmap_coords = bool(recon.get("keep_colmap_coords", True))
+    overwrite_frames = bool(video.get("overwrite", False))
+
+    video_input_raw = str(dataset.get("video_input", "auto")).strip()
+    if video_input_raw and video_input_raw.lower() != "auto":
+        video_input = str(as_abs(video_input_raw))
+    else:
+        video_input = "auto"
 
     return {
         "project_root": str(ROOT_DIR),
         "dataset_name": dataset_name,
+        "video_dir": str(video_dir),
+        "video_input": video_input,
         "images_dir": str(images_dir),
         "workspace_dir": str(workspace_dir),
         "outputs_dataset_dir": str(outputs_dataset_dir),
@@ -76,6 +96,16 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "instant_ngp_dir": str(as_abs(paths.get("instant_ngp_dir", "third_party/instant-ngp"))),
         "pointnerf_dir": str(as_abs(paths.get("pointnerf_dir", "third_party/pointnerf"))),
         "python_bin": paths.get("python_bin", "python"),
+        "frame_fps": str(video.get("fps", 3.0)),
+        "video_start_time": str(video.get("start_time", "00:00:00")),
+        "video_end_time": str(video.get("end_time", "none")),
+        "frame_max_count": str(video.get("max_frames", 0)),
+        "jpeg_quality": str(video.get("jpeg_quality", 2)),
+        "resize_width": str(video.get("resize_width", -1)),
+        "resize_height": str(video.get("resize_height", -1)),
+        "frame_prefix": str(video.get("filename_prefix", "frame")),
+        "frame_start_number": str(video.get("start_number", 1)),
+        "overwrite_frames": bool_to_text(overwrite_frames),
         "aabb_scale": str(recon.get("aabb_scale", 16)),
         "ngp_steps": str(recon.get("ngp_steps", 35000)),
         "marching_cubes_res": str(recon.get("marching_cubes_res", 512)),
@@ -101,6 +131,16 @@ def list_images(images_dir: Path) -> list[Path]:
         p
         for p in images_dir.iterdir()
         if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES and not p.name.startswith(".")
+    ]
+
+
+def list_videos(video_dir: Path) -> list[Path]:
+    if not video_dir.exists():
+        return []
+    return [
+        p
+        for p in video_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in VIDEO_SUFFIXES and not p.name.startswith(".")
     ]
 
 
@@ -132,12 +172,14 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
     dataset_cfg = load_toml(dataset_path)
     context = build_context(config, dataset_cfg, dataset_name)
 
+    Path(context["video_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["images_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["workspace_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["outputs_dataset_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["run_dir"]).mkdir(parents=True, exist_ok=True)
 
     print(f"[ok] dataset config: {dataset_path}")
+    print(f"[ok] video drop dir: {context['video_dir']}")
     print(f"[ok] image drop dir: {context['images_dir']}")
     return 0
 
@@ -159,9 +201,39 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     images_dir = Path(context["images_dir"])
     images = list_images(images_dir)
+    video_dir = Path(context["video_dir"])
+    videos = list_videos(video_dir)
+    video_input_text = context["video_input"]
+    overwrite_frames = text_to_bool(context["overwrite_frames"])
+
+    extraction_stage_enabled = (
+        "extract_video_frames" in stages
+        and bool(stages_cfg.get("extract_video_frames", {}).get("enabled", True))
+    )
+
     images_ok = len(images) > 0
-    print_check("input images", images_ok, f"{images_dir} ({len(images)} files)")
-    overall_ok = overall_ok and images_ok
+    if images_ok:
+        print_check("input images", True, f"{images_dir} ({len(images)} files)")
+    elif extraction_stage_enabled:
+        print_check("input images", True, f"{images_dir} (0 files, will be generated from video)")
+    else:
+        print_check("input images", False, f"{images_dir} (0 files)")
+
+    if images_ok and not overwrite_frames:
+        print_check("video source", True, "images already exist; frame extraction can be skipped")
+    elif extraction_stage_enabled:
+        if video_input_text != "auto":
+            video_input = Path(video_input_text)
+            video_ok = video_input.exists()
+            print_check("video input", video_ok, str(video_input))
+            overall_ok = overall_ok and video_ok
+        else:
+            auto_ok = len(videos) == 1
+            detail = f"{video_dir} ({len(videos)} candidate files)"
+            print_check("video auto-discovery", auto_ok, detail)
+            overall_ok = overall_ok and auto_ok
+    else:
+        overall_ok = overall_ok and images_ok
 
     for path_key in ("instant_ngp_dir",):
         path = Path(context[path_key])

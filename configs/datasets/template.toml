@@ -1,9 +1,23 @@
 [dataset]
 name = "dataset_name"
+video_dir = "data/raw/dataset_name/video"
+video_input = "data/raw/dataset_name/video/capture.mp4"
 images_dir = "data/raw/dataset_name/images"
 workspace_dir = "data/processed/dataset_name"
 outputs_dataset_dir = "outputs/dataset_name"
 notes = "Replace dataset_name with your real dataset id."
+
+[video]
+fps = 3.0
+start_time = "00:00:00"
+end_time = "none"
+max_frames = 0
+jpeg_quality = 2
+resize_width = -1
+resize_height = -1
+filename_prefix = "frame"
+start_number = 1
+overwrite = false
 
 [reconstruction]
 aabb_scale = 16

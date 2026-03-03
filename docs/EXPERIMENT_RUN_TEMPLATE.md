@@ -4,12 +4,19 @@
 - 日期：
 - 执行人：
 - 数据集 ID：
+- 原始视频文件：
 - 数据规模（图片数）：
 
 ## 输入与配置
+- 视频路径：`data/raw/<dataset_id>/video/`
 - 图像路径：`data/raw/<dataset_id>/images/`
 - 数据集配置：`configs/datasets/<dataset_id>.toml`
 - 关键参数：
+  - `fps`:
+  - `start_time`:
+  - `end_time`:
+  - `max_frames`:
+  - `overwrite`:
   - `aabb_scale`:
   - `ngp_steps`:
   - `marching_cubes_res`:
@@ -18,6 +25,7 @@
 ## 运行命令
 ```bash
 make check DATASET=<dataset_id>
+make frames DATASET=<dataset_id>
 make run DATASET=<dataset_id>
 ```
 

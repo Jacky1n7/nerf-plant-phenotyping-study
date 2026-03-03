@@ -37,3 +37,18 @@
 - 问题与下一步动作
 
 可直接复制 [EXPERIMENT_RUN_TEMPLATE.md](./EXPERIMENT_RUN_TEMPLATE.md) 填写。
+
+## 2026-03-03｜接入视频抽帧流程
+
+### 完成内容
+- 新增视频输入目录约定：`data/raw/<dataset_id>/video/`
+- 新增抽帧脚本：`scripts/extract_video_frames.py`
+- 流水线新增阶段：`extract_video_frames`（位于 COLMAP 之前）
+- 新增命令：`make frames DATASET=<dataset_id>`
+- 更新数据集配置，支持视频抽帧参数（`[video]`）
+- README 改为更直接的使用说明
+
+### 当前默认行为
+- 如果 `images/` 已有图片且 `overwrite=false`，抽帧阶段会自动跳过
+- 如果 `images/` 为空，抽帧阶段会从 `video_input` 抽帧
+- `video_input=auto` 时，会从 `video_dir` 自动识别单个视频文件

@@ -1,9 +1,23 @@
 [dataset]
 name = "maize_plant_01"
+video_dir = "data/raw/maize_plant_01/video"
+video_input = "data/raw/maize_plant_01/video/capture.mp4"
 images_dir = "data/raw/maize_plant_01/images"
 workspace_dir = "data/processed/maize_plant_01"
 outputs_dataset_dir = "outputs/maize_plant_01"
 notes = "Template dataset config. Copy this file for new datasets."
+
+[video]
+fps = 3.0
+start_time = "00:00:00"
+end_time = "none"
+max_frames = 0
+jpeg_quality = 2
+resize_width = -1
+resize_height = -1
+filename_prefix = "frame"
+start_number = 1
+overwrite = false
 
 [reconstruction]
 aabb_scale = 16
