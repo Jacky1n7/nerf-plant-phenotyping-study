@@ -1,0 +1,70 @@
+[project]
+name = "nerf-plant-phenotyping-study"
+default_dataset = "maize_plant_01"
+
+[paths]
+data_raw_dir = "data/raw"
+data_processed_dir = "data/processed"
+outputs_dir = "outputs"
+runs_dir = "outputs/runs"
+instant_ngp_dir = "third_party/instant-ngp"
+pointnerf_dir = "third_party/pointnerf"
+python_bin = "python"
+
+[pipeline]
+default_stages = [
+  "prepare_dirs",
+  "colmap",
+  "colmap_to_text",
+  "transforms",
+  "train_instant_ngp",
+  "export_geometry",
+  "extract_traits",
+]
+
+[stages.prepare_dirs]
+enabled = true
+commands = [
+  "mkdir -p {workspace_dir}",
+  "mkdir -p {run_dir}",
+  "mkdir -p {outputs_dataset_dir}",
+]
+
+[stages.colmap]
+enabled = true
+required_tools = ["colmap"]
+commands = [
+  "colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {images_dir} --data_type individual --quality high",
+]
+
+[stages.colmap_to_text]
+enabled = true
+required_tools = ["colmap"]
+commands = [
+  "mkdir -p {workspace_dir}/colmap_text",
+  "colmap model_converter --input_path {workspace_dir}/colmap/sparse/0 --output_path {workspace_dir}/colmap_text --output_type TXT",
+]
+
+[stages.transforms]
+enabled = true
+commands = [
+  "{python_bin} {instant_ngp_dir}/scripts/colmap2nerf.py --images {images_dir} --text {workspace_dir}/colmap_text --out {workspace_dir}/transforms.json --aabb_scale {aabb_scale} {keep_colmap_coords_flag}",
+]
+
+[stages.train_instant_ngp]
+enabled = true
+commands = [
+  "{python_bin} {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --mode nerf --n_steps {ngp_steps} --save_snapshot {outputs_dataset_dir}/instant-ngp.msgpack",
+]
+
+[stages.export_geometry]
+enabled = true
+commands = [
+  "{python_bin} {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --mode nerf --load_snapshot {outputs_dataset_dir}/instant-ngp.msgpack --save_mesh {outputs_dataset_dir}/mesh.ply --marching_cubes_res {marching_cubes_res}",
+]
+
+[stages.extract_traits]
+enabled = true
+commands = [
+  "{python_bin} scripts/extract_traits.py --input {outputs_dataset_dir}/mesh.ply --output {outputs_dataset_dir}/traits.csv --vertical-axis {vertical_axis}",
+]

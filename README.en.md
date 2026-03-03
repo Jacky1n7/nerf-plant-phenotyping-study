@@ -26,6 +26,70 @@ This draft maps the pipeline to practical open-source implementation details:
 - **Instant-NGP branch**: hash-encoded NeRF for fast training/inference, COLMAP-to-`transforms.json` preprocessing, and density-field export.
 - **Point-NeRF branch**: neural point representation for sparse-view and heavy-occlusion scenes, with point pruning/growing for geometry refinement.
 
+## Engineering Setup (Ready to Run Once Data Arrives)
+
+The repo now includes a runnable pipeline so you can drop a dataset and execute it end-to-end.
+
+### 1) Environment
+
+```bash
+make bootstrap
+pip install -r requirements.txt
+```
+
+Notes:
+- `make bootstrap` clones `third_party/instant-ngp` and `third_party/pointnerf`.
+- Install `COLMAP` first, and build `instant-ngp` following upstream docs.
+
+### 2) Initialize Dataset
+
+```bash
+make init DATASET=maize_plant_01
+```
+
+This creates:
+- `configs/datasets/maize_plant_01.toml`
+- `data/raw/maize_plant_01/images/`
+
+Put your captured images under `images/`.
+
+### 3) Validate and Run
+
+```bash
+make check DATASET=maize_plant_01
+make run DATASET=maize_plant_01
+```
+
+For command preview only:
+
+```bash
+make dry-run DATASET=maize_plant_01
+```
+
+### 4) Data Handoff Contract
+
+```text
+data/raw/<dataset_id>/
+└── images/
+    ├── 0001.jpg
+    ├── 0002.jpg
+    └── ...
+```
+
+Tune per-dataset settings in `configs/datasets/<dataset_id>.toml`:
+- `aabb_scale`
+- `ngp_steps`
+- `marching_cubes_res`
+- `vertical_axis`
+
+## Experiment Tracking
+
+The repo now includes built-in experiment tracking docs:
+- Master log: [docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
+- Per-run template: [docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
+
+After each run, append parameter changes, commands, and key metrics to keep a reproducible trail.
+
 ## Project Structure
 
 ```text
@@ -40,6 +104,20 @@ This draft maps the pipeline to practical open-source implementation details:
 │   ├── nerf_plant_reconstruction.aux
 │   ├── nerf_plant_reconstruction.log
 │   └── nerf_plant_reconstruction.out
+├── configs/
+│   ├── pipeline.toml
+│   └── datasets/
+├── scripts/
+│   ├── bootstrap_third_party.sh
+│   ├── pipeline.py
+│   └── extract_traits.py
+├── docs/
+│   ├── EXPERIMENT_LOG.md
+│   └── EXPERIMENT_RUN_TEMPLATE.md
+├── src/
+│   └── nerf_plant_pipeline/
+├── Makefile
+├── requirements.txt
 ├── README.md
 ├── README.en.md
 └── manuscript_package.tar.gz

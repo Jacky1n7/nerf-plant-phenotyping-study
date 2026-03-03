@@ -1,0 +1,15 @@
+[dataset]
+name = "maize_plant_01"
+images_dir = "data/raw/maize_plant_01/images"
+workspace_dir = "data/processed/maize_plant_01"
+outputs_dataset_dir = "outputs/maize_plant_01"
+notes = "Template dataset config. Copy this file for new datasets."
+
+[reconstruction]
+aabb_scale = 16
+keep_colmap_coords = true
+ngp_steps = 35000
+marching_cubes_res = 512
+
+[traits]
+vertical_axis = "z"

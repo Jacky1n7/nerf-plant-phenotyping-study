@@ -1,0 +1,15 @@
+[dataset]
+name = "dataset_name"
+images_dir = "data/raw/dataset_name/images"
+workspace_dir = "data/processed/dataset_name"
+outputs_dataset_dir = "outputs/dataset_name"
+notes = "Replace dataset_name with your real dataset id."
+
+[reconstruction]
+aabb_scale = 16
+keep_colmap_coords = true
+ngp_steps = 35000
+marching_cubes_res = 512
+
+[traits]
+vertical_axis = "z"
