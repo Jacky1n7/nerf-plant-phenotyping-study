@@ -44,7 +44,8 @@
 python scripts/render_mesh_preview.py \
   --input outputs/maize_plant_01/mesh.ply \
   --output assets/results/maize_plant_01_preview.png \
-  --dataset maize_plant_01
+  --dataset maize_plant_01 \
+  --transforms data/processed/maize_plant_01/transforms.json
 ```
 
 ## 推荐环境（Conda）

@@ -30,6 +30,16 @@ Core goal: take a 360-degree plant video and produce:
 
 ![maize_plant_01 reconstruction preview](assets/results/maize_plant_01_preview.png)
 
+Regenerate preview image:
+
+```bash
+python scripts/render_mesh_preview.py \
+  --input outputs/maize_plant_01/mesh.ply \
+  --output assets/results/maize_plant_01_preview.png \
+  --dataset maize_plant_01 \
+  --transforms data/processed/maize_plant_01/transforms.json
+```
+
 ## Recommended Conda Setup
 
 Use Python 3.11:

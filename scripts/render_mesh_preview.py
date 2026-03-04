@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import json
 from pathlib import Path
 
 import numpy as np
@@ -59,6 +60,32 @@ def sample_vertices(path: Path, target_points: int) -> np.ndarray:
     return np.asarray(points, dtype=np.float32)
 
 
+def camera_center_from_transforms(path: Path) -> np.ndarray:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    frames = data.get("frames", [])
+    if not isinstance(frames, list) or not frames:
+        raise ValueError("No frames found in transforms file")
+    centers = []
+    for frame in frames:
+        mat = np.asarray(frame.get("transform_matrix"), dtype=np.float32)
+        if mat.shape != (4, 4):
+            continue
+        centers.append(mat[:3, 3])
+    if not centers:
+        raise ValueError("No valid camera transforms found")
+    return np.mean(np.stack(centers, axis=0), axis=0)
+
+
+def radial_focus(points: np.ndarray, center: np.ndarray, keep_quantile: float) -> np.ndarray:
+    q = min(0.8, max(0.01, keep_quantile))
+    d = np.linalg.norm(points - center[None, :], axis=1)
+    threshold = float(np.quantile(d, q))
+    kept = points[d <= threshold]
+    if len(kept) < max(2000, len(points) // 20):
+        return points
+    return kept
+
+
 def rotation_matrix(elev_deg: float, azim_deg: float) -> np.ndarray:
     elev = math.radians(elev_deg)
     azim = math.radians(azim_deg)
@@ -112,6 +139,8 @@ def render_view(points: np.ndarray, size: tuple[int, int], elev: float, azim: fl
         canvas[yi, xi, :] = (30, shade, 50)
         if yi + 1 < h:
             canvas[yi + 1, xi, :] = (60, min(255, shade + 20), 80)
+        if xi + 1 < w:
+            canvas[yi, xi + 1, :] = (60, min(255, shade + 20), 80)
 
     return Image.fromarray(canvas, mode="RGB")
 
@@ -156,7 +185,14 @@ def main() -> int:
     parser.add_argument("--input", required=True, help="Input mesh PLY path")
     parser.add_argument("--output", required=True, help="Output preview PNG path")
     parser.add_argument("--dataset", required=True, help="Dataset id for preview title")
+    parser.add_argument("--transforms", default="", help="Optional transforms.json for camera-center-guided focus")
     parser.add_argument("--target-points", type=int, default=220000, help="Approx sampled point count")
+    parser.add_argument(
+        "--radial-keep-quantile",
+        type=float,
+        default=0.15,
+        help="Keep nearest quantile of points around camera center (requires --transforms)",
+    )
     parser.add_argument(
         "--crop-quantile",
         type=float,
@@ -171,6 +207,12 @@ def main() -> int:
         raise FileNotFoundError(f"Input mesh not found: {input_path}")
 
     points = sample_vertices(input_path, args.target_points)
+    if args.transforms:
+        transforms_path = Path(args.transforms)
+        if not transforms_path.exists():
+            raise FileNotFoundError(f"Transforms file not found: {transforms_path}")
+        center = camera_center_from_transforms(transforms_path)
+        points = radial_focus(points, center, args.radial_keep_quantile)
     points = crop_outer_shell(points, args.crop_quantile)
     compose_preview(points, output_path, args.dataset)
     print(f"[ok] preview saved to: {output_path}")
