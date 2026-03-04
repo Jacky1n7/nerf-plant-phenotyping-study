@@ -8,10 +8,10 @@ outputs_dataset_dir = "outputs/maize_plant_01"
 notes = "Template dataset config. Copy this file for new datasets."
 
 [video]
-fps = 15.0
+fps = 6
 start_time = "00:00:00"
 end_time = "none"
-max_frames = 0
+max_frames = 180
 jpeg_quality = 2
 resize_width = -1
 resize_height = -1

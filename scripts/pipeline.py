@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import glob
 import os
 import re
 import shlex
@@ -159,6 +160,17 @@ def list_videos(video_dir: Path) -> list[Path]:
     ]
 
 
+def list_pyngp_binaries(instant_ngp_dir: Path) -> list[Path]:
+    patterns = ["build*/**/pyngp*.so", "build*/**/pyngp*.pyd"]
+    results: list[Path] = []
+    for pattern in patterns:
+        for item in glob.glob(str(instant_ngp_dir / pattern), recursive=True):
+            path = Path(item)
+            if path.is_file():
+                results.append(path)
+    return sorted(results)
+
+
 def first_token(cmd: str) -> str | None:
     parts = shlex.split(cmd)
     for part in parts:
@@ -261,6 +273,14 @@ def cmd_check(args: argparse.Namespace) -> int:
     python_ok = check_binary(context["python_bin"])
     print_check("python_bin", python_ok, context["python_bin"])
     overall_ok = overall_ok and python_ok
+
+    train_related = {"train_instant_ngp", "export_geometry"}
+    if any(stage in train_related for stage in stages):
+        pyngp_bins = list_pyngp_binaries(Path(context["instant_ngp_dir"]))
+        pyngp_ok = len(pyngp_bins) > 0
+        detail = str(pyngp_bins[0]) if pyngp_ok else f"not found under {context['instant_ngp_dir']}/build*"
+        print_check("pyngp_binary", pyngp_ok, detail)
+        overall_ok = overall_ok and pyngp_ok
 
     for stage in stages:
         stage_cfg = stages_cfg.get(stage)
