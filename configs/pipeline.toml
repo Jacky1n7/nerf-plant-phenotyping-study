@@ -59,6 +59,7 @@ commands = [
 enabled = true
 commands = [
   "{python_bin} {instant_ngp_dir}/scripts/colmap2nerf.py --images {images_dir} --text {workspace_dir}/colmap_text --out {workspace_dir}/transforms.json --aabb_scale {aabb_scale} {keep_colmap_coords_flag}",
+  "{python_bin} scripts/fix_transforms_paths.py --transforms {workspace_dir}/transforms.json --project-root {project_root}",
 ]
 
 [stages.train_instant_ngp]

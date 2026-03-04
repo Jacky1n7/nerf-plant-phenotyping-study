@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import glob
+import json
 import os
 import re
 import shlex
@@ -171,6 +172,43 @@ def list_pyngp_binaries(instant_ngp_dir: Path) -> list[Path]:
     return sorted(results)
 
 
+def check_transforms_images(transforms_path: Path, project_root: Path) -> tuple[bool, str]:
+    if not transforms_path.exists():
+        return False, f"missing file: {transforms_path}"
+
+    try:
+        with transforms_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, f"invalid json: {exc}"
+
+    frames = data.get("frames", [])
+    if not isinstance(frames, list) or not frames:
+        return False, "no frames found in transforms.json"
+
+    transforms_dir = transforms_path.parent
+    missing = 0
+    for frame in frames:
+        raw = frame.get("file_path")
+        if not raw:
+            missing += 1
+            continue
+
+        p = Path(raw)
+        candidates: list[Path]
+        if p.is_absolute():
+            candidates = [p]
+        else:
+            candidates = [(transforms_dir / p).resolve(), (project_root / p).resolve()]
+
+        if not any(c.is_file() for c in candidates):
+            missing += 1
+
+    if missing > 0:
+        return False, f"{missing}/{len(frames)} images are missing from paths in {transforms_path.name}"
+    return True, f"{len(frames)} images resolved from {transforms_path}"
+
+
 def first_token(cmd: str) -> str | None:
     parts = shlex.split(cmd)
     for part in parts:
@@ -281,6 +319,13 @@ def cmd_check(args: argparse.Namespace) -> int:
         detail = str(pyngp_bins[0]) if pyngp_ok else f"not found under {context['instant_ngp_dir']}/build*"
         print_check("pyngp_binary", pyngp_ok, detail)
         overall_ok = overall_ok and pyngp_ok
+
+        transforms_ok, transforms_detail = check_transforms_images(
+            Path(context["workspace_dir"]) / "transforms.json",
+            ROOT_DIR,
+        )
+        print_check("transforms_images", transforms_ok, transforms_detail)
+        overall_ok = overall_ok and transforms_ok
 
     for stage in stages:
         stage_cfg = stages_cfg.get(stage)
