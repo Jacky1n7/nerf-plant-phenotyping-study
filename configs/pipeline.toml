@@ -43,6 +43,7 @@ commands = [
 enabled = true
 required_tools = ["colmap"]
 commands = [
+  "mkdir -p {workspace_dir}/colmap",
   "colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {images_dir} --data_type individual --quality high",
 ]
 
