@@ -22,7 +22,7 @@
 
 `maize_plant_01` 已完成多轮重跑，当前流程已稳定到：
 - 输入：360 视频自动抽帧（帧数随视频时长与 `fps` 动态变化）
-- 产物：`instant-ngp.msgpack` + `mesh.ply` + `traits.csv`
+- 产物：`instant-ngp.msgpack` + `mesh.ply` + `dense_point_cloud.ply` + `traits.csv`
 - 命令：支持全流程一键重跑与分阶段续跑
 
 说明：`traits.csv` 目前仍属于重建坐标系下的相对量，后续可接入物理尺度标定。
@@ -123,7 +123,13 @@ python scripts/pipeline.py \
 python scripts/pipeline.py \
   --config configs/pipeline.toml run \
   --dataset maize_plant_01 \
-  --stages train_instant_ngp,export_geometry,extract_traits
+  --stages train_instant_ngp,export_geometry,extract_dense_point_cloud,extract_traits
+```
+
+只从 mesh 重提密集点云：
+
+```bash
+make dense-cloud DATASET=maize_plant_01
 ```
 
 说明：`colmap` 阶段现在会自动清理旧的 `colmap/`、`colmap_text/` 与 `transforms.json`，避免重跑时读到过期索引导致 `frame_xxxxxx.jpg` 缺失报错。
@@ -143,6 +149,16 @@ python scripts/pipeline.py \
 - `training_vis_video_fps`
 
 说明：开启后训练总耗时会略增加（因为每个 chunk 会额外导出一张渲染图）。
+
+已开放精度相关参数（同样位于 `[reconstruction]`）：
+- `train_mode`（推荐 `rfl_relax`）
+- `rfl_warmup_steps`
+- `rflrelax_begin_step` / `rflrelax_end_step`
+- `near_distance`
+- `sharpen`
+- `marching_cubes_density_thresh`
+
+去云雾开关在 `[dehaze]`，并会自动让 COLMAP 与 transforms 使用去云雾后的图像目录。
 
 ## 如何查看成果
 
@@ -171,6 +187,12 @@ meshlab outputs/maize_plant_01/mesh.ply
 
 ```bash
 cloudcompare outputs/maize_plant_01/mesh.ply
+```
+
+4. 看密集点云：
+
+```bash
+cloudcompare outputs/maize_plant_01/dense_point_cloud.ply
 ```
 
 ## 常见问题与处理
@@ -230,7 +252,26 @@ COLMAP 参数（`[colmap]`）：
 - `aabb_scale`
 - `ngp_steps`
 - `marching_cubes_res`
+- `marching_cubes_density_thresh`
 - `keep_colmap_coords`
+- `train_mode`
+- `rfl_warmup_steps`
+- `rflrelax_begin_step` / `rflrelax_end_step`
+- `near_distance`
+- `sharpen`
+
+去云雾参数（`[dehaze]`）：
+- `enabled`
+- `output_dir`
+- `omega`
+- `window_size`
+- `min_transmission`
+- `guided_radius`
+
+密集点云参数（`[point_cloud]`）：
+- `enabled`
+- `num_points`
+- `seed`
 
 表型参数（`[traits]`）：
 - `vertical_axis`
@@ -240,6 +281,7 @@ COLMAP 参数（`[colmap]`）：
 - 运行日志：`outputs/runs/<dataset_id>/pipeline.log`
 - 快照：`outputs/<dataset_id>/instant-ngp.msgpack`
 - 网格：`outputs/<dataset_id>/mesh.ply`
+- 密集点云：`outputs/<dataset_id>/dense_point_cloud.ply`
 - 指标：`outputs/<dataset_id>/traits.csv`
 - 训练可视化：`outputs/<dataset_id>/training_vis/`
 
@@ -248,6 +290,7 @@ COLMAP 参数（`[colmap]`）：
 - 总日志：[docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
 - 单次模板：[docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
 - 命令速查：[docs/COMMANDS.md](./docs/COMMANDS.md)
+- 第一轮优化说明：[docs/OPTIMIZATION_ROUND1.md](./docs/OPTIMIZATION_ROUND1.md)
 
 ## 项目结构
 
@@ -266,8 +309,10 @@ COLMAP 参数（`[colmap]`）：
 │   ├── bootstrap_third_party.sh
 │   ├── pipeline.py
 │   ├── extract_video_frames.py
+│   ├── dehaze_images.py
 │   ├── fix_transforms_paths.py
 │   ├── render_mesh_preview.py
+│   ├── extract_dense_point_cloud.py
 │   └── extract_traits.py
 ├── src/
 │   └── nerf_plant_pipeline/

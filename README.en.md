@@ -16,6 +16,7 @@ This repository contains:
 Core goal: take a 360-degree plant video and produce:
 - an instant-ngp snapshot
 - a mesh
+- a dense point cloud
 - basic phenotypic traits
 
 ## Current Status (March 4, 2026)
@@ -23,7 +24,7 @@ Core goal: take a 360-degree plant video and produce:
 `maize_plant_01` has been run repeatedly with updated videos, and the workflow is now stable for:
 - frame extraction from 360-degree video
 - COLMAP + transforms generation
-- instant-ngp training and mesh export
+- instant-ngp training, mesh export, and dense point cloud extraction
 
 Note: current `traits.csv` values are still relative reconstruction units before physical scale calibration.
 
@@ -102,7 +103,13 @@ Resume from training stage only:
 python scripts/pipeline.py \
   --config configs/pipeline.toml run \
   --dataset maize_plant_01 \
-  --stages train_instant_ngp,export_geometry,extract_traits
+  --stages train_instant_ngp,export_geometry,extract_dense_point_cloud,extract_traits
+```
+
+Re-export dense point cloud from mesh:
+
+```bash
+make dense-cloud DATASET=maize_plant_01
 ```
 
 `colmap` stage now clears stale `colmap/`, `colmap_text/`, and `transforms.json` automatically before reconstruction, which prevents mismatched-frame errors after replacing videos.
@@ -120,6 +127,16 @@ Config switches are under `[reconstruction]` in `configs/datasets/<dataset_id>.t
 - `training_vis_video_fps`
 
 Enabling this adds extra rendering overhead during training.
+
+Accuracy-oriented training options (also under `[reconstruction]`):
+- `train_mode` (recommended: `rfl_relax`)
+- `rfl_warmup_steps`
+- `rflrelax_begin_step` / `rflrelax_end_step`
+- `near_distance`
+- `sharpen`
+- `marching_cubes_density_thresh`
+
+Dehazing is controlled under `[dehaze]`. When enabled, COLMAP and transforms stages automatically consume dehazed frames.
 
 ## Viewing Results
 
@@ -142,6 +159,12 @@ Open mesh:
 
 ```bash
 meshlab outputs/maize_plant_01/mesh.ply
+```
+
+Open dense point cloud:
+
+```bash
+cloudcompare outputs/maize_plant_01/dense_point_cloud.ply
 ```
 
 ## Common Issues
@@ -173,6 +196,7 @@ python scripts/fix_transforms_paths.py \
 - `outputs/runs/<dataset_id>/pipeline.log`
 - `outputs/<dataset_id>/instant-ngp.msgpack`
 - `outputs/<dataset_id>/mesh.ply`
+- `outputs/<dataset_id>/dense_point_cloud.ply`
 - `outputs/<dataset_id>/traits.csv`
 - `outputs/<dataset_id>/training_vis/`
 
@@ -181,3 +205,4 @@ python scripts/fix_transforms_paths.py \
 - [docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
 - [docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
 - [docs/COMMANDS.md](./docs/COMMANDS.md) (Chinese command cheat sheet)
+- [docs/OPTIMIZATION_ROUND1.md](./docs/OPTIMIZATION_ROUND1.md) (Round 1 optimization notes)

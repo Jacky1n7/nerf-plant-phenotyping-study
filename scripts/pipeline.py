@@ -73,8 +73,10 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     paths = config.get("paths", {})
     dataset = dataset_cfg.get("dataset", {})
     video = dataset_cfg.get("video", {})
+    dehaze = dataset_cfg.get("dehaze", {})
     colmap = dataset_cfg.get("colmap", {})
     recon = dataset_cfg.get("reconstruction", {})
+    point_cloud = dataset_cfg.get("point_cloud", {})
     traits = dataset_cfg.get("traits", {})
 
     video_dir = as_abs(dataset.get("video_dir", f"data/raw/{dataset_name}/video"))
@@ -85,10 +87,12 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
 
     keep_colmap_coords = bool(recon.get("keep_colmap_coords", True))
     overwrite_frames = bool(video.get("overwrite", False))
+    dehaze_enabled = bool(dehaze.get("enabled", False))
     colmap_single_camera = bool(colmap.get("single_camera", True))
     colmap_use_gpu = bool(colmap.get("use_gpu", True))
     training_vis_enabled = bool(recon.get("training_vis_enabled", False))
     training_vis_make_video = bool(recon.get("training_vis_make_video", True))
+    point_cloud_enabled = bool(point_cloud.get("enabled", True))
 
     video_input_raw = str(dataset.get("video_input", "auto")).strip()
     if video_input_raw and video_input_raw.lower() != "auto":
@@ -96,12 +100,19 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     else:
         video_input = "auto"
 
+    dehazed_images_dir = as_abs(
+        dehaze.get("output_dir", str(workspace_dir / "images_dehazed"))
+    )
+    recon_images_dir = dehazed_images_dir if dehaze_enabled else images_dir
+
     return {
         "project_root": str(ROOT_DIR),
         "dataset_name": dataset_name,
         "video_dir": str(video_dir),
         "video_input": video_input,
         "images_dir": str(images_dir),
+        "dehazed_images_dir": str(dehazed_images_dir),
+        "recon_images_dir": str(recon_images_dir),
         "workspace_dir": str(workspace_dir),
         "outputs_dataset_dir": str(outputs_dataset_dir),
         "run_dir": str(run_dir),
@@ -118,6 +129,15 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "frame_prefix": str(video.get("filename_prefix", "frame")),
         "frame_start_number": str(video.get("start_number", 1)),
         "overwrite_frames": bool_to_text(overwrite_frames),
+        "dehaze_enabled": bool_to_text(dehaze_enabled),
+        "dehaze_overwrite": bool_to_text(dehaze.get("overwrite", False)),
+        "dehaze_omega": str(dehaze.get("omega", 0.95)),
+        "dehaze_window_size": str(dehaze.get("window_size", 15)),
+        "dehaze_min_transmission": str(dehaze.get("min_transmission", 0.1)),
+        "dehaze_atmosphere_top_percent": str(dehaze.get("atmosphere_top_percent", 0.001)),
+        "dehaze_guided_radius": str(dehaze.get("guided_radius", 24)),
+        "dehaze_guided_eps": str(dehaze.get("guided_eps", 1e-3)),
+        "dehaze_gamma": str(dehaze.get("gamma", 1.0)),
         "colmap_data_type": str(colmap.get("data_type", "video")),
         "colmap_quality": str(colmap.get("quality", "medium")),
         "colmap_single_camera": bool_to_int_text(colmap_single_camera),
@@ -128,6 +148,14 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "aabb_scale": str(recon.get("aabb_scale", 16)),
         "ngp_steps": str(recon.get("ngp_steps", 35000)),
         "marching_cubes_res": str(recon.get("marching_cubes_res", 512)),
+        "marching_cubes_density_thresh": str(recon.get("marching_cubes_density_thresh", 2.5)),
+        "recon_near_distance": str(recon.get("near_distance", -1.0)),
+        "recon_sharpen": str(recon.get("sharpen", 0.0)),
+        "recon_exposure": str(recon.get("exposure", 0.0)),
+        "recon_train_mode": str(recon.get("train_mode", "rfl_relax")),
+        "recon_rfl_warmup_steps": str(recon.get("rfl_warmup_steps", 1000)),
+        "recon_rflrelax_begin_step": str(recon.get("rflrelax_begin_step", 15000)),
+        "recon_rflrelax_end_step": str(recon.get("rflrelax_end_step", 30000)),
         "training_vis_enabled": bool_to_text(training_vis_enabled),
         "training_vis_chunk_steps": str(recon.get("training_vis_chunk_steps", 5000)),
         "training_vis_frame_index": str(recon.get("training_vis_frame_index", 0)),
@@ -136,6 +164,9 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "training_vis_height": str(recon.get("training_vis_height", 720)),
         "training_vis_video_fps": str(recon.get("training_vis_video_fps", 6)),
         "training_vis_make_video": bool_to_text(training_vis_make_video),
+        "point_cloud_enabled": bool_to_text(point_cloud_enabled),
+        "point_cloud_num_points": str(point_cloud.get("num_points", 1200000)),
+        "point_cloud_seed": str(point_cloud.get("seed", 42)),
         "vertical_axis": str(traits.get("vertical_axis", "z")),
         "keep_colmap_coords_flag": "--keep_colmap_coords" if keep_colmap_coords else "",
     }
@@ -251,6 +282,7 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
 
     Path(context["video_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["images_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["dehazed_images_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["workspace_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["outputs_dataset_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["run_dir"]).mkdir(parents=True, exist_ok=True)
@@ -258,6 +290,7 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
     print(f"[ok] dataset config: {dataset_path}")
     print(f"[ok] video drop dir: {context['video_dir']}")
     print(f"[ok] image drop dir: {context['images_dir']}")
+    print(f"[ok] dehaze image dir: {context['dehazed_images_dir']}")
     return 0
 
 

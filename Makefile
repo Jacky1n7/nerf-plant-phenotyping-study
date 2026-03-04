@@ -3,7 +3,7 @@ DATASET ?= maize_plant_01
 CONFIG ?= configs/pipeline.toml
 CONDA_ENV ?= nerf
 
-.PHONY: help bootstrap init check frames dry-run run run-live traits
+.PHONY: help bootstrap init check frames dry-run run run-live traits dense-cloud
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  make run DATASET=<name>       # Execute full pipeline"
 	@echo "  make run-live DATASET=<name>  # Execute with unbuffered live logs via conda"
 	@echo "  make traits DATASET=<name>    # Re-run trait extraction only"
+	@echo "  make dense-cloud DATASET=<name> # Re-export dense point cloud from mesh"
 
 bootstrap:
 	bash scripts/bootstrap_third_party.sh
@@ -42,3 +43,6 @@ traits:
 		--input outputs/$(DATASET)/mesh.ply \
 		--output outputs/$(DATASET)/traits.csv \
 		--vertical-axis z
+
+dense-cloud:
+	$(PYTHON) scripts/pipeline.py --config $(CONFIG) run --dataset $(DATASET) --stages extract_dense_point_cloud

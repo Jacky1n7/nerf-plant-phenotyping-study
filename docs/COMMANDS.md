@@ -51,7 +51,7 @@ python scripts/pipeline.py \
 python scripts/pipeline.py \
   --config configs/pipeline.toml run \
   --dataset maize_plant_01 \
-  --stages train_instant_ngp,export_geometry,extract_traits
+  --stages train_instant_ngp,export_geometry,extract_dense_point_cloud,extract_traits
 ```
 
 只跑训练（含训练过程可视化）：
@@ -70,6 +70,12 @@ outputs/maize_plant_01/training_vis/
 ├── frames/             # 分段截图
 ├── progress_steps.csv  # 帧号与训练步数映射
 └── progress.mp4        # 训练过程视频
+```
+
+只提取密集点云：
+
+```bash
+make dense-cloud DATASET=maize_plant_01
 ```
 
 ## 5. 结果查看
@@ -95,6 +101,12 @@ python third_party/instant-ngp/scripts/run.py \
 meshlab outputs/maize_plant_01/mesh.ply
 # 或
 cloudcompare outputs/maize_plant_01/mesh.ply
+```
+
+看密集点云：
+
+```bash
+cloudcompare outputs/maize_plant_01/dense_point_cloud.ply
 ```
 
 ## 6. 常见报错快速处理

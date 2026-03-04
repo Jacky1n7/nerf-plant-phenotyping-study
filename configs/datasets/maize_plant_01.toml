@@ -19,6 +19,18 @@ filename_prefix = "frame"
 start_number = 1
 overwrite = true
 
+[dehaze]
+enabled = true
+output_dir = "data/processed/maize_plant_01/images_dehazed"
+overwrite = true
+omega = 0.95
+window_size = 15
+min_transmission = 0.1
+atmosphere_top_percent = 0.001
+guided_radius = 24
+guided_eps = 0.001
+gamma = 1.0
+
 [colmap]
 data_type = "video"
 quality = "medium"
@@ -33,6 +45,14 @@ aabb_scale = 16
 keep_colmap_coords = true
 ngp_steps = 50000
 marching_cubes_res = 256
+marching_cubes_density_thresh = 2.5
+near_distance = -1.0
+sharpen = 0.2
+exposure = 0.0
+train_mode = "rfl_relax"
+rfl_warmup_steps = 1500
+rflrelax_begin_step = 15000
+rflrelax_end_step = 42000
 training_vis_enabled = true
 training_vis_chunk_steps = 5000
 training_vis_frame_index = 0
@@ -41,6 +61,11 @@ training_vis_width = 1280
 training_vis_height = 720
 training_vis_make_video = true
 training_vis_video_fps = 6
+
+[point_cloud]
+enabled = true
+num_points = 1200000
+seed = 42
 
 [traits]
 vertical_axis = "z"

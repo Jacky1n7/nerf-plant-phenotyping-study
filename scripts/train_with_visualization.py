@@ -39,6 +39,13 @@ def build_ngp_command(
     screenshot_spp: int,
     width: int,
     height: int,
+    near_distance: float,
+    sharpen: float,
+    exposure: float,
+    train_mode: str,
+    rfl_warmup_steps: int,
+    rflrelax_begin_step: int,
+    rflrelax_end_step: int,
 ) -> list[str]:
     cmd = [
         python_bin,
@@ -49,6 +56,29 @@ def build_ngp_command(
         str(n_steps),
         "--save_snapshot",
         str(snapshot),
+    ]
+    if near_distance >= 0:
+        cmd += ["--near_distance", str(near_distance)]
+    if sharpen != 0:
+        cmd += ["--sharpen", str(sharpen)]
+    if exposure != 0:
+        cmd += ["--exposure", str(exposure)]
+
+    normalized_train_mode = train_mode.strip().lower()
+    if normalized_train_mode not in {"nerf", "rfl", "rfl_relax", "rflrelax"}:
+        raise ValueError(
+            "--train-mode must be one of: nerf, rfl, rfl_relax (or rflrelax)"
+        )
+
+    cmd += [
+        "--train_mode",
+        normalized_train_mode,
+        "--rfl_warmup_steps",
+        str(rfl_warmup_steps),
+        "--rflrelax_begin_step",
+        str(rflrelax_begin_step),
+        "--rflrelax_end_step",
+        str(rflrelax_end_step),
     ]
     if load_snapshot is not None:
         cmd += ["--load_snapshot", str(load_snapshot)]
@@ -109,6 +139,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", required=True, type=int, help="Total training steps")
     parser.add_argument("--snapshot", required=True, help="Output snapshot path")
     parser.add_argument("--transforms", required=True, help="Path to transforms.json (for screenshots)")
+    parser.add_argument("--near-distance", type=float, default=-1.0)
+    parser.add_argument("--sharpen", type=float, default=0.0)
+    parser.add_argument("--exposure", type=float, default=0.0)
+    parser.add_argument("--train-mode", default="rfl_relax", help="nerf | rfl | rfl_relax")
+    parser.add_argument("--rfl-warmup-steps", type=int, default=1000)
+    parser.add_argument("--rflrelax-begin-step", type=int, default=15000)
+    parser.add_argument("--rflrelax-end-step", type=int, default=30000)
 
     parser.add_argument("--visualize", default="false", help="true/false")
     parser.add_argument("--chunk-steps", type=int, default=5000)
@@ -134,6 +171,12 @@ def main() -> int:
 
     if args.chunk_steps <= 0:
         print("[error] --chunk-steps must be > 0", file=sys.stderr)
+        return 1
+    if args.rfl_warmup_steps < 0:
+        print("[error] --rfl-warmup-steps must be >= 0", file=sys.stderr)
+        return 1
+    if args.rflrelax_begin_step < 0 or args.rflrelax_end_step < 0:
+        print("[error] --rflrelax-begin-step and --rflrelax-end-step must be >= 0", file=sys.stderr)
         return 1
 
     ngp_script = Path(args.ngp_script).expanduser().resolve()
@@ -178,6 +221,13 @@ def main() -> int:
             screenshot_spp=args.screenshot_spp,
             width=args.width,
             height=args.height,
+            near_distance=args.near_distance,
+            sharpen=args.sharpen,
+            exposure=args.exposure,
+            train_mode=args.train_mode,
+            rfl_warmup_steps=args.rfl_warmup_steps,
+            rflrelax_begin_step=args.rflrelax_begin_step,
+            rflrelax_end_step=args.rflrelax_end_step,
         )
         return run_command(cmd)
 
@@ -220,6 +270,13 @@ def main() -> int:
                 screenshot_spp=args.screenshot_spp,
                 width=args.width,
                 height=args.height,
+                near_distance=args.near_distance,
+                sharpen=args.sharpen,
+                exposure=args.exposure,
+                train_mode=args.train_mode,
+                rfl_warmup_steps=args.rfl_warmup_steps,
+                rflrelax_begin_step=args.rflrelax_begin_step,
+                rflrelax_end_step=args.rflrelax_end_step,
             )
 
             print(f"[info] chunk {frame_index}: steps {completed + 1}-{next_step}", flush=True)

@@ -15,11 +15,13 @@ python_bin = "python"
 default_stages = [
   "prepare_dirs",
   "extract_video_frames",
+  "dehaze_images",
   "colmap",
   "colmap_to_text",
   "transforms",
   "train_instant_ngp",
   "export_geometry",
+  "extract_dense_point_cloud",
   "extract_traits",
 ]
 
@@ -39,13 +41,19 @@ commands = [
   "{python_bin} scripts/extract_video_frames.py --video-dir {video_dir} --input-video {video_input} --output-dir {images_dir} --fps {frame_fps} --start-time {video_start_time} --end-time {video_end_time} --max-frames {frame_max_count} --jpeg-quality {jpeg_quality} --resize-width {resize_width} --resize-height {resize_height} --filename-prefix {frame_prefix} --start-number {frame_start_number} --overwrite {overwrite_frames}",
 ]
 
+[stages.dehaze_images]
+enabled = true
+commands = [
+  "{python_bin} scripts/dehaze_images.py --input-dir {images_dir} --output-dir {dehazed_images_dir} --enabled {dehaze_enabled} --overwrite {dehaze_overwrite} --omega {dehaze_omega} --window-size {dehaze_window_size} --min-transmission {dehaze_min_transmission} --atmosphere-top-percent {dehaze_atmosphere_top_percent} --guided-radius {dehaze_guided_radius} --guided-eps {dehaze_guided_eps} --gamma {dehaze_gamma} --jpeg-quality 95",
+]
+
 [stages.colmap]
 enabled = true
 required_tools = ["colmap"]
 commands = [
   "rm -rf {workspace_dir}/colmap {workspace_dir}/colmap_text {workspace_dir}/transforms.json",
   "mkdir -p {workspace_dir}/colmap",
-  "OPENBLAS_NUM_THREADS={openblas_num_threads} colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {images_dir} --data_type {colmap_data_type} --quality {colmap_quality} --single_camera {colmap_single_camera} --use_gpu {colmap_use_gpu} --gpu_index {colmap_gpu_index} --num_threads {colmap_num_threads} --dense 0",
+  "OPENBLAS_NUM_THREADS={openblas_num_threads} colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {recon_images_dir} --data_type {colmap_data_type} --quality {colmap_quality} --single_camera {colmap_single_camera} --use_gpu {colmap_use_gpu} --gpu_index {colmap_gpu_index} --num_threads {colmap_num_threads} --dense 0",
 ]
 
 [stages.colmap_to_text]
@@ -59,20 +67,26 @@ commands = [
 [stages.transforms]
 enabled = true
 commands = [
-  "{python_bin} {instant_ngp_dir}/scripts/colmap2nerf.py --images {images_dir} --text {workspace_dir}/colmap_text --out {workspace_dir}/transforms.json --aabb_scale {aabb_scale} {keep_colmap_coords_flag}",
+  "{python_bin} {instant_ngp_dir}/scripts/colmap2nerf.py --images {recon_images_dir} --text {workspace_dir}/colmap_text --out {workspace_dir}/transforms.json --aabb_scale {aabb_scale} {keep_colmap_coords_flag}",
   "{python_bin} scripts/fix_transforms_paths.py --transforms {workspace_dir}/transforms.json --project-root {project_root}",
 ]
 
 [stages.train_instant_ngp]
 enabled = true
 commands = [
-  "{python_bin} scripts/train_with_visualization.py --python-bin {python_bin} --ngp-script {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --steps {ngp_steps} --snapshot {outputs_dataset_dir}/instant-ngp.msgpack --transforms {workspace_dir}/transforms.json --visualize {training_vis_enabled} --chunk-steps {training_vis_chunk_steps} --screenshot-frame {training_vis_frame_index} --screenshot-spp {training_vis_spp} --width {training_vis_width} --height {training_vis_height} --vis-dir {outputs_dataset_dir}/training_vis --make-video {training_vis_make_video} --video-fps {training_vis_video_fps} --video-output {outputs_dataset_dir}/training_vis/progress.mp4",
+  "{python_bin} scripts/train_with_visualization.py --python-bin {python_bin} --ngp-script {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --steps {ngp_steps} --snapshot {outputs_dataset_dir}/instant-ngp.msgpack --transforms {workspace_dir}/transforms.json --near-distance {recon_near_distance} --sharpen {recon_sharpen} --exposure {recon_exposure} --train-mode {recon_train_mode} --rfl-warmup-steps {recon_rfl_warmup_steps} --rflrelax-begin-step {recon_rflrelax_begin_step} --rflrelax-end-step {recon_rflrelax_end_step} --visualize {training_vis_enabled} --chunk-steps {training_vis_chunk_steps} --screenshot-frame {training_vis_frame_index} --screenshot-spp {training_vis_spp} --width {training_vis_width} --height {training_vis_height} --vis-dir {outputs_dataset_dir}/training_vis --make-video {training_vis_make_video} --video-fps {training_vis_video_fps} --video-output {outputs_dataset_dir}/training_vis/progress.mp4",
 ]
 
 [stages.export_geometry]
 enabled = true
 commands = [
-  "{python_bin} {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --mode nerf --load_snapshot {outputs_dataset_dir}/instant-ngp.msgpack --save_mesh {outputs_dataset_dir}/mesh.ply --marching_cubes_res {marching_cubes_res}",
+  "{python_bin} {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --mode nerf --load_snapshot {outputs_dataset_dir}/instant-ngp.msgpack --save_mesh {outputs_dataset_dir}/mesh.ply --marching_cubes_res {marching_cubes_res} --marching_cubes_density_thresh {marching_cubes_density_thresh}",
+]
+
+[stages.extract_dense_point_cloud]
+enabled = true
+commands = [
+  "{python_bin} scripts/extract_dense_point_cloud.py --input {outputs_dataset_dir}/mesh.ply --output {outputs_dataset_dir}/dense_point_cloud.ply --enabled {point_cloud_enabled} --num-points {point_cloud_num_points} --seed {point_cloud_seed}",
 ]
 
 [stages.extract_traits]
