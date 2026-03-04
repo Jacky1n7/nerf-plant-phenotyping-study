@@ -26,6 +26,10 @@ Core goal: take a 360-degree plant video and produce:
 - mesh: `outputs/maize_plant_01/mesh.ply`
 - traits: `outputs/maize_plant_01/traits.csv`
 
+## Result Preview
+
+![maize_plant_01 reconstruction preview](assets/results/maize_plant_01_preview.png)
+
 ## Recommended Conda Setup
 
 Use Python 3.11:

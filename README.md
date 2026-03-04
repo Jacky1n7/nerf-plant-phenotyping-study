@@ -34,6 +34,19 @@
 
 说明：该数值还未做真实尺度标定，属于重建坐标系下的相对量。
 
+## 成果展示（本轮）
+
+![maize_plant_01 三维重建预览](assets/results/maize_plant_01_preview.png)
+
+如果要重新生成预览图：
+
+```bash
+python scripts/render_mesh_preview.py \
+  --input outputs/maize_plant_01/mesh.ply \
+  --output assets/results/maize_plant_01_preview.png \
+  --dataset maize_plant_01
+```
+
 ## 推荐环境（Conda）
 
 建议使用 Python 3.11：
@@ -233,6 +246,7 @@ COLMAP 参数（`[colmap]`）：
 │   ├── pipeline.py
 │   ├── extract_video_frames.py
 │   ├── fix_transforms_paths.py
+│   ├── render_mesh_preview.py
 │   └── extract_traits.py
 ├── src/
 │   └── nerf_plant_pipeline/
