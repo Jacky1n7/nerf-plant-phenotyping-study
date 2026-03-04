@@ -26,6 +26,24 @@
   - 全流程终端输出已中文化
 - mip-nerf360 相关环境已清理，不作为当前建议路径
 
+## 效果示例（最新版）
+
+### 稠密点云采样
+
+| 总览 | 局部细节 A |
+| --- | --- |
+| ![maize dense point cloud overview](assets/results/maize_plant_01_dense_point_cloud_overview.png) | ![maize dense point cloud closeup 1](assets/results/maize_plant_01_dense_point_cloud_closeup_01.png) |
+
+| 局部细节 B | 结构视角 |
+| --- | --- |
+| ![maize dense point cloud closeup 2](assets/results/maize_plant_01_dense_point_cloud_closeup_02.png) | ![maize dense point cloud structure](assets/results/maize_plant_01_dense_point_cloud_structure.png) |
+
+### NeRF 裁剪渲染
+
+| 视角 A | 视角 B |
+| --- | --- |
+| ![maize nerf crop render 1](assets/results/maize_plant_01_nerf_crop_render_01.png) | ![maize nerf crop render 2](assets/results/maize_plant_01_nerf_crop_render_02.png) |
+
 ## 环境准备
 
 建议 Python 3.11：

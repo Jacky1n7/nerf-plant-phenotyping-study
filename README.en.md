@@ -28,7 +28,25 @@ Core goal: take a 360-degree plant video and produce:
 
 Note: current `traits.csv` values are still relative reconstruction units before physical scale calibration.
 
-## Result Preview (Updated Video)
+## Result Preview (Latest)
+
+### Dense Point Cloud Sampling
+
+| Overview | Close-up A |
+| --- | --- |
+| ![maize dense point cloud overview](assets/results/maize_plant_01_dense_point_cloud_overview.png) | ![maize dense point cloud closeup 1](assets/results/maize_plant_01_dense_point_cloud_closeup_01.png) |
+
+| Close-up B | Structural View |
+| --- | --- |
+| ![maize dense point cloud closeup 2](assets/results/maize_plant_01_dense_point_cloud_closeup_02.png) | ![maize dense point cloud structure](assets/results/maize_plant_01_dense_point_cloud_structure.png) |
+
+### NeRF Crop Render
+
+| View A | View B |
+| --- | --- |
+| ![maize nerf crop render 1](assets/results/maize_plant_01_nerf_crop_render_01.png) | ![maize nerf crop render 2](assets/results/maize_plant_01_nerf_crop_render_02.png) |
+
+### Earlier Quick Views
 
 | View 1 | View 2 |
 | --- | --- |
