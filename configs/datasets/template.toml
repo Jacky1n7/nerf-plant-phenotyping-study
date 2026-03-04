@@ -101,5 +101,11 @@ enabled = true
 num_points = 1200000
 seed = 42
 
+[archive]
+enabled = true
+root_dir = "outputs/history"
+include_training_vis = true
+include_workspace_meta = true
+
 [traits]
 vertical_axis = "z"

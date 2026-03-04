@@ -27,6 +27,7 @@ make run-live DATASET=maize_plant_01
 ```
 
 说明：`colmap` 阶段会自动清理旧的 `colmap/`、`colmap_text/`、`transforms.json`，适合换视频后直接重跑。
+说明：每次完整流程执行结束会自动归档结果到 `outputs/history/<dataset>_<时间戳>/`。
 
 ## 4. 常用分阶段
 
@@ -43,6 +44,15 @@ python scripts/pipeline.py \
   --config configs/pipeline.toml run \
   --dataset maize_plant_01 \
   --stages colmap,colmap_to_text,transforms
+```
+
+先跑一轮初步去雾并更新位姿：
+
+```bash
+python scripts/pipeline.py \
+  --config configs/pipeline.toml run \
+  --dataset maize_plant_01 \
+  --stages dehaze_images,colmap,colmap_to_text,transforms
 ```
 
 从训练开始续跑：

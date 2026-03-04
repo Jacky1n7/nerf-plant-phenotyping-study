@@ -41,16 +41,16 @@ max_index = 0
 topup_mode = "segment"
 
 [dehaze]
-enabled = false
+enabled = true
 output_dir = "data/processed/maize_plant_01/images_dehazed"
 overwrite = true
-omega = 0.95
+omega = 0.90
 window_size = 15
-min_transmission = 0.1
+min_transmission = 0.20
 atmosphere_top_percent = 0.001
-guided_radius = 24
+guided_radius = 12
 guided_eps = 0.001
-gamma = 1.0
+gamma = 1.05
 
 [colmap]
 data_type = "individual"
@@ -100,6 +100,12 @@ export_extra_args = ""
 enabled = true
 num_points = 1200000
 seed = 42
+
+[archive]
+enabled = true
+root_dir = "outputs/history"
+include_training_vis = true
+include_workspace_meta = true
 
 [traits]
 vertical_axis = "z"

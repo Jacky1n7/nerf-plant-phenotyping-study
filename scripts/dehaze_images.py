@@ -85,13 +85,14 @@ def box_filter(image: np.ndarray, radius: int) -> np.ndarray:
 
 def guided_filter(guidance: np.ndarray, target: np.ndarray, radius: int, eps: float) -> np.ndarray:
     n = box_filter(np.ones_like(guidance, dtype=np.float32), radius)
+    n = np.maximum(n, 1e-6)
     mean_i = box_filter(guidance, radius) / n
     mean_p = box_filter(target, radius) / n
     corr_i = box_filter(guidance * guidance, radius) / n
     corr_ip = box_filter(guidance * target, radius) / n
-    var_i = corr_i - mean_i * mean_i
+    var_i = np.maximum(corr_i - mean_i * mean_i, 0.0)
     cov_ip = corr_ip - mean_i * mean_p
-    a = cov_ip / (var_i + eps)
+    a = cov_ip / np.maximum(var_i + eps, 1e-6)
     b = mean_p - a * mean_i
     mean_a = box_filter(a, radius) / n
     mean_b = box_filter(b, radius) / n
@@ -129,8 +130,15 @@ def dehaze(
         guidance = np.mean(image, axis=2).astype(np.float32)
         transmission = guided_filter(guidance, transmission.astype(np.float32), guided_radius, guided_eps)
 
+    transmission = np.nan_to_num(
+        transmission,
+        nan=min_transmission,
+        posinf=1.0,
+        neginf=min_transmission,
+    )
     transmission = np.clip(transmission, min_transmission, 1.0)
     recovered = (image - airlight.reshape(1, 1, 3)) / transmission[..., None] + airlight.reshape(1, 1, 3)
+    recovered = np.nan_to_num(recovered, nan=0.0, posinf=1.0, neginf=0.0)
     recovered = np.clip(recovered, 0.0, 1.0)
     if gamma != 1.0:
         recovered = np.power(recovered, gamma)
@@ -207,6 +215,10 @@ def main() -> int:
         return 1
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    if overwrite:
+        for old in list_images(output_dir):
+            old.unlink()
+
     total = len(images)
     print(f"[info] dehaze start: {total} images")
     print(f"[info] input={input_dir}")

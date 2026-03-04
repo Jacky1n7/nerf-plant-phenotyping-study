@@ -25,6 +25,7 @@ default_stages = [
   "export_geometry",
   "extract_dense_point_cloud",
   "extract_traits",
+  "archive_results",
 ]
 
 [stages.prepare_dirs]
@@ -108,4 +109,10 @@ commands = [
 enabled = true
 commands = [
   "{python_bin} scripts/extract_traits.py --input {outputs_dataset_dir}/mesh.ply --output {outputs_dataset_dir}/traits.csv --vertical-axis {vertical_axis}",
+]
+
+[stages.archive_results]
+enabled = true
+commands = [
+  "{python_bin} scripts/archive_run_results.py --enabled {archive_enabled} --dataset {dataset_name} --project-root {project_root} --outputs-dir {outputs_dataset_dir} --workspace-dir {workspace_dir} --run-log {run_dir}/pipeline.log --archive-root {archive_root_dir} --include-training-vis {archive_include_training_vis} --include-workspace-meta {archive_include_workspace_meta}",
 ]

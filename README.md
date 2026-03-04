@@ -81,6 +81,7 @@ make run-live DATASET=maize_plant_01
 说明：
 - `colmap` 阶段会自动清理旧的 `colmap/`、`colmap_text/`、`transforms.json`
 - `pipeline.py run` 的主提示为中文（阶段、执行、错误、完成）
+- 每次完整运行结束会自动归档到 `outputs/history/<dataset_id>_<YYYYmmdd_HHMMSS>/`
 
 ## 常用分阶段命令
 
@@ -144,11 +145,15 @@ cloudcompare outputs/maize_plant_01/dense_point_cloud.ply
 
 ## 去云雾策略（当前建议）
 
-当前 `maize_plant_01` 配置里 `dehaze.enabled = false`（默认关闭）。
+当前 `maize_plant_01` 已启用一版初步去雾参数（轻度）：
+- `omega = 0.90`
+- `min_transmission = 0.20`
+- `guided_radius = 12`
+- `gamma = 1.05`
 
 建议做法：
-1. 先以默认配置跑通完整流程，确认基线效果。
-2. 如果场景确实有明显雾化/泛白，再开启 `dehaze` 并重跑 `colmap,colmap_to_text,transforms`。
+1. 先重跑 `dehaze_images,colmap,colmap_to_text,transforms` 观察位姿稳定性变化。
+2. 再跑训练与导出，和无去雾版本对比几何噪声与叶片边缘细节。
 3. 对比注册帧数、点云噪声和叶片边缘细节，再决定是否用于正式训练。
 
 ## 常见问题
@@ -190,6 +195,7 @@ python scripts/pipeline.py \
 - 密集点云：`outputs/<dataset_id>/dense_point_cloud.ply`
 - 指标：`outputs/<dataset_id>/traits.csv`
 - 训练可视化：`outputs/<dataset_id>/training_vis/`
+- 历史归档：`outputs/history/<dataset_id>_<YYYYmmdd_HHMMSS>/`
 
 ## 相关文档
 

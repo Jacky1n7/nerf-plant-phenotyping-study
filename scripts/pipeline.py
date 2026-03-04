@@ -31,6 +31,7 @@ STAGE_LABELS = {
     "export_geometry": "导出几何",
     "extract_dense_point_cloud": "提取密集点云",
     "extract_traits": "提取表型指标",
+    "archive_results": "归档运行结果",
 }
 
 
@@ -101,6 +102,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     recon = dataset_cfg.get("reconstruction", {})
     mip = dataset_cfg.get("mipnerf360", {})
     point_cloud = dataset_cfg.get("point_cloud", {})
+    archive = dataset_cfg.get("archive", {})
     traits = dataset_cfg.get("traits", {})
 
     video_dir = as_abs(dataset.get("video_dir", f"data/raw/{dataset_name}/video"))
@@ -141,6 +143,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         mip.get("config_link", str(outputs_dataset_dir / "mipnerf360_latest_config.txt"))
     )
     mip_export_dir = as_abs(mip.get("export_dir", str(outputs_dataset_dir / "mipnerf360_export")))
+    archive_root_dir = as_abs(archive.get("root_dir", "outputs/history"))
 
     return {
         "project_root": str(ROOT_DIR),
@@ -235,6 +238,10 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "point_cloud_enabled": bool_to_text(point_cloud_enabled),
         "point_cloud_num_points": str(point_cloud.get("num_points", 1200000)),
         "point_cloud_seed": str(point_cloud.get("seed", 42)),
+        "archive_enabled": bool_to_text(archive.get("enabled", True)),
+        "archive_root_dir": str(archive_root_dir),
+        "archive_include_training_vis": bool_to_text(archive.get("include_training_vis", True)),
+        "archive_include_workspace_meta": bool_to_text(archive.get("include_workspace_meta", True)),
         "vertical_axis": str(traits.get("vertical_axis", "z")),
         "keep_colmap_coords_flag": "--keep_colmap_coords" if keep_colmap_coords else "",
     }
@@ -355,6 +362,7 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
     Path(context["dehazed_images_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["mip_output_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["mip_export_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["archive_root_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["workspace_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["outputs_dataset_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["run_dir"]).mkdir(parents=True, exist_ok=True)
@@ -366,6 +374,7 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
     print(f"[完成] 筛选图像目录: {context['filtered_images_dir']}")
     print(f"[完成] 去雾图像目录: {context['dehazed_images_dir']}")
     print(f"[完成] Mip-NeRF360输出目录: {context['mip_output_dir']}")
+    print(f"[完成] 运行归档目录: {context['archive_root_dir']}")
     return 0
 
 
