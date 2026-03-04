@@ -8,7 +8,7 @@ outputs_dataset_dir = "outputs/maize_plant_01"
 notes = "Template dataset config. Copy this file for new datasets."
 
 [video]
-fps = 3.0
+fps = 15.0
 start_time = "00:00:00"
 end_time = "none"
 max_frames = 0
@@ -18,6 +18,15 @@ resize_height = -1
 filename_prefix = "frame"
 start_number = 1
 overwrite = false
+
+[colmap]
+data_type = "video"
+quality = "medium"
+single_camera = true
+use_gpu = true
+gpu_index = -1
+num_threads = -1
+openblas_num_threads = 1
 
 [reconstruction]
 aabb_scale = 16

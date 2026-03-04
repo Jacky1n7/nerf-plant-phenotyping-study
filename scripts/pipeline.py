@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -58,6 +59,10 @@ def bool_to_text(value: bool) -> str:
     return "true" if value else "false"
 
 
+def bool_to_int_text(value: bool) -> str:
+    return "1" if value else "0"
+
+
 def text_to_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
@@ -66,6 +71,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     paths = config.get("paths", {})
     dataset = dataset_cfg.get("dataset", {})
     video = dataset_cfg.get("video", {})
+    colmap = dataset_cfg.get("colmap", {})
     recon = dataset_cfg.get("reconstruction", {})
     traits = dataset_cfg.get("traits", {})
 
@@ -77,6 +83,8 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
 
     keep_colmap_coords = bool(recon.get("keep_colmap_coords", True))
     overwrite_frames = bool(video.get("overwrite", False))
+    colmap_single_camera = bool(colmap.get("single_camera", True))
+    colmap_use_gpu = bool(colmap.get("use_gpu", True))
 
     video_input_raw = str(dataset.get("video_input", "auto")).strip()
     if video_input_raw and video_input_raw.lower() != "auto":
@@ -106,6 +114,13 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "frame_prefix": str(video.get("filename_prefix", "frame")),
         "frame_start_number": str(video.get("start_number", 1)),
         "overwrite_frames": bool_to_text(overwrite_frames),
+        "colmap_data_type": str(colmap.get("data_type", "video")),
+        "colmap_quality": str(colmap.get("quality", "medium")),
+        "colmap_single_camera": bool_to_int_text(colmap_single_camera),
+        "colmap_use_gpu": bool_to_int_text(colmap_use_gpu),
+        "colmap_gpu_index": str(colmap.get("gpu_index", -1)),
+        "colmap_num_threads": str(colmap.get("num_threads", -1)),
+        "openblas_num_threads": str(colmap.get("openblas_num_threads", 1)),
         "aabb_scale": str(recon.get("aabb_scale", 16)),
         "ngp_steps": str(recon.get("ngp_steps", 35000)),
         "marching_cubes_res": str(recon.get("marching_cubes_res", 512)),
@@ -146,9 +161,11 @@ def list_videos(video_dir: Path) -> list[Path]:
 
 def first_token(cmd: str) -> str | None:
     parts = shlex.split(cmd)
-    if not parts:
-        return None
-    return parts[0]
+    for part in parts:
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", part):
+            continue
+        return part
+    return None
 
 
 def check_binary(binary: str) -> bool:

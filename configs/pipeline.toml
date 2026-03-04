@@ -44,7 +44,7 @@ enabled = true
 required_tools = ["colmap"]
 commands = [
   "mkdir -p {workspace_dir}/colmap",
-  "colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {images_dir} --data_type individual --quality high",
+  "OPENBLAS_NUM_THREADS={openblas_num_threads} colmap automatic_reconstructor --workspace_path {workspace_dir}/colmap --image_path {images_dir} --data_type {colmap_data_type} --quality {colmap_quality} --single_camera {colmap_single_camera} --use_gpu {colmap_use_gpu} --gpu_index {colmap_gpu_index} --num_threads {colmap_num_threads} --dense 0",
 ]
 
 [stages.colmap_to_text]
