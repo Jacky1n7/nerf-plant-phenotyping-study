@@ -9,21 +9,44 @@
 
 # NeRF Plant 3D Reconstruction & Phenotyping
 
-This repo contains:
-- Manuscript files (`manuscript/`)
-- A runnable pipeline (`configs/`, `scripts/`, `Makefile`)
+This repository contains:
+- manuscript files (`manuscript/`)
+- a runnable pipeline (`configs/`, `scripts/`, `Makefile`)
 
-Primary workflow: provide a 360 plant video, extract frames, then run reconstruction.
+Core goal: take a 360-degree plant video and produce:
+- an instant-ngp snapshot
+- a mesh
+- basic phenotypic traits
 
-## Setup
+## Current Status (March 4, 2026)
 
-1. Install `COLMAP`
-2. Install `ffmpeg`
-3. Pull third-party repos and Python deps
+`maize_plant_01` has been fully run end-to-end:
+- input frames: 163
+- snapshot: `outputs/maize_plant_01/instant-ngp.msgpack`
+- mesh: `outputs/maize_plant_01/mesh.ply`
+- traits: `outputs/maize_plant_01/traits.csv`
+
+## Recommended Conda Setup
+
+Use Python 3.11:
 
 ```bash
-make bootstrap
+conda create -n nerf python=3.11 -y
+conda activate nerf
 pip install -r requirements.txt
+make bootstrap
+```
+
+Required system tools:
+- `COLMAP`
+- `ffmpeg`
+
+For instant-ngp GUI (`--gui`) on Linux:
+
+```bash
+conda install -n nerf -c conda-forge \
+  libgl-devel libglu xorg-libx11 xorg-libxext \
+  xorg-libxrandr xorg-libxi xorg-libxinerama xorg-libxcursor
 ```
 
 ## Dataset Layout (Video First)
@@ -32,7 +55,7 @@ pip install -r requirements.txt
 make init DATASET=maize_plant_01
 ```
 
-This creates:
+Creates:
 
 ```text
 data/raw/maize_plant_01/
@@ -40,30 +63,74 @@ data/raw/maize_plant_01/
 └── images/
 ```
 
-Default input video path:
+Default video path:
 
 ```text
 data/raw/<dataset_id>/video/capture.mp4
 ```
 
-If your filename differs, update `dataset.video_input` in `configs/datasets/<dataset_id>.toml`.
+If your video name differs, edit `dataset.video_input` in `configs/datasets/<dataset_id>.toml`.
 
-## Commands
+## Pipeline Commands
 
 ```bash
-make check DATASET=maize_plant_01    # validate env + paths
-make frames DATASET=maize_plant_01   # extract video frames only
-make run DATASET=maize_plant_01      # full pipeline
-make dry-run DATASET=maize_plant_01  # print commands only
+make check DATASET=maize_plant_01
+make frames DATASET=maize_plant_01
+make run DATASET=maize_plant_01
+make dry-run DATASET=maize_plant_01
 ```
 
-## Key Config Fields
+Resume from training stage only:
 
-File: `configs/datasets/<dataset_id>.toml`
+```bash
+python scripts/pipeline.py \
+  --config configs/pipeline.toml run \
+  --dataset maize_plant_01 \
+  --stages train_instant_ngp,export_geometry,extract_traits
+```
 
-- `[video]`: `fps`, `start_time`, `end_time`, `max_frames`, `resize_width`, `resize_height`, `overwrite`
-- `[reconstruction]`: `aabb_scale`, `ngp_steps`, `marching_cubes_res`
-- `[traits]`: `vertical_axis`
+## Viewing Results
+
+View traits:
+
+```bash
+cat outputs/maize_plant_01/traits.csv
+```
+
+Open NeRF viewer:
+
+```bash
+python third_party/instant-ngp/scripts/run.py \
+  --scene data/processed/maize_plant_01 \
+  --load_snapshot outputs/maize_plant_01/instant-ngp.msgpack \
+  --gui
+```
+
+Open mesh:
+
+```bash
+meshlab outputs/maize_plant_01/mesh.ply
+```
+
+## Common Issues
+
+1. `ModuleNotFoundError: No module named 'pyngp'`
+- Build the instant-ngp Python binding and re-run `make check`.
+
+2. `No training images were found for NeRF training`
+- Fix `transforms.json` paths:
+
+```bash
+python scripts/fix_transforms_paths.py \
+  --transforms data/processed/<dataset_id>/transforms.json \
+  --project-root .
+```
+
+3. `NGP was built without GUI support`
+- Rebuild instant-ngp with GUI enabled and OpenGL/X11 dependencies installed.
+
+4. Progress bar seems frozen under `conda run`
+- Run directly in activated env (`python ...`) for proper `tqdm` rendering.
 
 ## Outputs
 
