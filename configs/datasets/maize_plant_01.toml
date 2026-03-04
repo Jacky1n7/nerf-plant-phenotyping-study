@@ -8,7 +8,7 @@ outputs_dataset_dir = "outputs/maize_plant_01"
 notes = "Template dataset config. Copy this file for new datasets."
 
 [video]
-fps = 6
+fps = 8
 start_time = "00:00:00"
 end_time = "none"
 max_frames = 180
@@ -17,7 +17,7 @@ resize_width = -1
 resize_height = -1
 filename_prefix = "frame"
 start_number = 1
-overwrite = false
+overwrite = true
 
 [colmap]
 data_type = "video"
@@ -31,8 +31,16 @@ openblas_num_threads = 1
 [reconstruction]
 aabb_scale = 16
 keep_colmap_coords = true
-ngp_steps = 35000
-marching_cubes_res = 512
+ngp_steps = 50000
+marching_cubes_res = 256
+training_vis_enabled = true
+training_vis_chunk_steps = 5000
+training_vis_frame_index = 0
+training_vis_spp = 8
+training_vis_width = 1280
+training_vis_height = 720
+training_vis_make_video = true
+training_vis_video_fps = 6
 
 [traits]
 vertical_axis = "z"

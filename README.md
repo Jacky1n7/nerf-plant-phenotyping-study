@@ -122,6 +122,22 @@ python scripts/pipeline.py \
 
 说明：`colmap` 阶段现在会自动清理旧的 `colmap/`、`colmap_text/` 与 `transforms.json`，避免重跑时读到过期索引导致 `frame_xxxxxx.jpg` 缺失报错。
 
+## 训练过程可视化
+
+已接入“分段训练 + 自动截图 + 自动合成视频”。
+
+默认输出：
+- 逐段截图：`outputs/<dataset_id>/training_vis/frames/frame_0001.png` ...
+- 步数映射：`outputs/<dataset_id>/training_vis/progress_steps.csv`
+- 进度视频：`outputs/<dataset_id>/training_vis/progress.mp4`
+
+开关在 `configs/datasets/<dataset_id>.toml` 的 `[reconstruction]`：
+- `training_vis_enabled = true|false`
+- `training_vis_chunk_steps`（每多少步截图一次）
+- `training_vis_video_fps`
+
+说明：开启后训练总耗时会略增加（因为每个 chunk 会额外导出一张渲染图）。
+
 ## 如何查看成果
 
 1. 看指标表：
@@ -219,6 +235,7 @@ COLMAP 参数（`[colmap]`）：
 - 快照：`outputs/<dataset_id>/instant-ngp.msgpack`
 - 网格：`outputs/<dataset_id>/mesh.ply`
 - 指标：`outputs/<dataset_id>/traits.csv`
+- 训练可视化：`outputs/<dataset_id>/training_vis/`
 
 ## 实验记录
 

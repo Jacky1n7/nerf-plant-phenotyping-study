@@ -87,6 +87,8 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     overwrite_frames = bool(video.get("overwrite", False))
     colmap_single_camera = bool(colmap.get("single_camera", True))
     colmap_use_gpu = bool(colmap.get("use_gpu", True))
+    training_vis_enabled = bool(recon.get("training_vis_enabled", False))
+    training_vis_make_video = bool(recon.get("training_vis_make_video", True))
 
     video_input_raw = str(dataset.get("video_input", "auto")).strip()
     if video_input_raw and video_input_raw.lower() != "auto":
@@ -126,6 +128,14 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "aabb_scale": str(recon.get("aabb_scale", 16)),
         "ngp_steps": str(recon.get("ngp_steps", 35000)),
         "marching_cubes_res": str(recon.get("marching_cubes_res", 512)),
+        "training_vis_enabled": bool_to_text(training_vis_enabled),
+        "training_vis_chunk_steps": str(recon.get("training_vis_chunk_steps", 5000)),
+        "training_vis_frame_index": str(recon.get("training_vis_frame_index", 0)),
+        "training_vis_spp": str(recon.get("training_vis_spp", 8)),
+        "training_vis_width": str(recon.get("training_vis_width", 1280)),
+        "training_vis_height": str(recon.get("training_vis_height", 720)),
+        "training_vis_video_fps": str(recon.get("training_vis_video_fps", 6)),
+        "training_vis_make_video": bool_to_text(training_vis_make_video),
         "vertical_axis": str(traits.get("vertical_axis", "z")),
         "keep_colmap_coords_flag": "--keep_colmap_coords" if keep_colmap_coords else "",
     }
@@ -326,6 +336,13 @@ def cmd_check(args: argparse.Namespace) -> int:
         )
         print_check("transforms_images", transforms_ok, transforms_detail)
         overall_ok = overall_ok and transforms_ok
+
+    training_vis_enabled = text_to_bool(context.get("training_vis_enabled", "false"))
+    training_vis_make_video = text_to_bool(context.get("training_vis_make_video", "false"))
+    if "train_instant_ngp" in stages and training_vis_enabled and training_vis_make_video:
+        ffmpeg_ok = check_binary("ffmpeg")
+        print_check("train_instant_ngp.ffmpeg", ffmpeg_ok, "ffmpeg")
+        overall_ok = overall_ok and ffmpeg_ok
 
     for stage in stages:
         stage_cfg = stages_cfg.get(stage)

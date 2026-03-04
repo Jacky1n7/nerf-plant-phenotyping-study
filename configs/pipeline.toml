@@ -66,7 +66,7 @@ commands = [
 [stages.train_instant_ngp]
 enabled = true
 commands = [
-  "{python_bin} {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --mode nerf --n_steps {ngp_steps} --save_snapshot {outputs_dataset_dir}/instant-ngp.msgpack",
+  "{python_bin} scripts/train_with_visualization.py --python-bin {python_bin} --ngp-script {instant_ngp_dir}/scripts/run.py --scene {workspace_dir} --steps {ngp_steps} --snapshot {outputs_dataset_dir}/instant-ngp.msgpack --transforms {workspace_dir}/transforms.json --visualize {training_vis_enabled} --chunk-steps {training_vis_chunk_steps} --screenshot-frame {training_vis_frame_index} --screenshot-spp {training_vis_spp} --width {training_vis_width} --height {training_vis_height} --vis-dir {outputs_dataset_dir}/training_vis --make-video {training_vis_make_video} --video-fps {training_vis_video_fps} --video-output {outputs_dataset_dir}/training_vis/progress.mp4",
 ]
 
 [stages.export_geometry]

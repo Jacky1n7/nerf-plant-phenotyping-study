@@ -33,6 +33,14 @@ aabb_scale = 16
 keep_colmap_coords = true
 ngp_steps = 35000
 marching_cubes_res = 512
+training_vis_enabled = false
+training_vis_chunk_steps = 5000
+training_vis_frame_index = 0
+training_vis_spp = 8
+training_vis_width = 1280
+training_vis_height = 720
+training_vis_make_video = true
+training_vis_video_fps = 6
 
 [traits]
 vertical_axis = "z"

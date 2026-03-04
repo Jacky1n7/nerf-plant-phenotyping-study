@@ -107,6 +107,20 @@ python scripts/pipeline.py \
 
 `colmap` stage now clears stale `colmap/`, `colmap_text/`, and `transforms.json` automatically before reconstruction, which prevents mismatched-frame errors after replacing videos.
 
+## Training Visualization
+
+The pipeline now supports chunked training visualization:
+- screenshot frames: `outputs/<dataset_id>/training_vis/frames/`
+- step mapping: `outputs/<dataset_id>/training_vis/progress_steps.csv`
+- progress video: `outputs/<dataset_id>/training_vis/progress.mp4`
+
+Config switches are under `[reconstruction]` in `configs/datasets/<dataset_id>.toml`:
+- `training_vis_enabled`
+- `training_vis_chunk_steps`
+- `training_vis_video_fps`
+
+Enabling this adds extra rendering overhead during training.
+
 ## Viewing Results
 
 View traits:
@@ -160,6 +174,7 @@ python scripts/fix_transforms_paths.py \
 - `outputs/<dataset_id>/instant-ngp.msgpack`
 - `outputs/<dataset_id>/mesh.ply`
 - `outputs/<dataset_id>/traits.csv`
+- `outputs/<dataset_id>/training_vis/`
 
 ## Experiment Tracking
 
