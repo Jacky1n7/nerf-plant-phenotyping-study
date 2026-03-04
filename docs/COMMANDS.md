@@ -20,6 +20,12 @@ make check DATASET=maize_plant_01
 make run DATASET=maize_plant_01
 ```
 
+如果你想在终端稳定看到实时训练进度（避免 conda 输出缓存）：
+
+```bash
+make run-live DATASET=maize_plant_01
+```
+
 说明：`colmap` 阶段会自动清理旧的 `colmap/`、`colmap_text/`、`transforms.json`，适合换视频后直接重跑。
 
 ## 4. 常用分阶段

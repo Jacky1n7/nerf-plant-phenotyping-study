@@ -90,6 +90,12 @@ make check DATASET=maize_plant_01
 make run DATASET=maize_plant_01
 ```
 
+如果终端看不到实时训练进度（常见于 `conda run` 输出缓存），用：
+
+```bash
+make run-live DATASET=maize_plant_01
+```
+
 只抽帧：
 
 ```bash

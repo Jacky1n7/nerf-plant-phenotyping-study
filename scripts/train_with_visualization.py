@@ -21,7 +21,7 @@ def format_cmd(cmd: list[str]) -> str:
 
 
 def run_command(cmd: list[str]) -> int:
-    print(f"[exec] {format_cmd(cmd)}")
+    print(f"[exec] {format_cmd(cmd)}", flush=True)
     result = subprocess.run(cmd)
     return int(result.returncode)
 
@@ -164,7 +164,7 @@ def main() -> int:
         snapshot.unlink()
 
     if not visualize:
-        print("[info] training visualization disabled; running single-shot training")
+        print("[info] training visualization disabled; running single-shot training", flush=True)
         cmd = build_ngp_command(
             python_bin=args.python_bin,
             ngp_script=ngp_script,
@@ -181,9 +181,9 @@ def main() -> int:
         )
         return run_command(cmd)
 
-    print("[info] training visualization enabled")
-    print(f"[info] vis_dir={vis_dir}")
-    print(f"[info] chunk_steps={args.chunk_steps}")
+    print("[info] training visualization enabled", flush=True)
+    print(f"[info] vis_dir={vis_dir}", flush=True)
+    print(f"[info] chunk_steps={args.chunk_steps}", flush=True)
     vis_dir.mkdir(parents=True, exist_ok=True)
     if frames_dir.exists():
         shutil.rmtree(frames_dir)
@@ -222,16 +222,16 @@ def main() -> int:
                 height=args.height,
             )
 
-            print(f"[info] chunk {frame_index}: steps {completed + 1}-{next_step}")
+            print(f"[info] chunk {frame_index}: steps {completed + 1}-{next_step}", flush=True)
             code = run_command(cmd)
             if code != 0:
                 return code
 
             image = latest_image(shot_dir)
             if image is None:
-                print(f"[warn] no screenshot generated for step={next_step}")
+                print(f"[warn] no screenshot generated for step={next_step}", flush=True)
             elif image.suffix.lower() != ".png":
-                print(f"[warn] screenshot is not png ({image.name}); skipping video frame copy")
+                print(f"[warn] screenshot is not png ({image.name}); skipping video frame copy", flush=True)
             else:
                 frame_path = frames_dir / f"frame_{frame_index:04d}.png"
                 shutil.copy2(image, frame_path)
@@ -241,19 +241,19 @@ def main() -> int:
 
     make_video_flag = text_to_bool(args.make_video)
     if not make_video_flag:
-        print("[info] video generation disabled")
+        print("[info] video generation disabled", flush=True)
         return 0
 
     png_frames = sorted(frames_dir.glob("frame_*.png"))
     if len(png_frames) < 2:
-        print("[warn] less than 2 frames found; skip progress.mp4 generation")
+        print("[warn] less than 2 frames found; skip progress.mp4 generation", flush=True)
         return 0
 
     video_output.parent.mkdir(parents=True, exist_ok=True)
     code = make_video(args.ffmpeg_bin, frames_dir, args.video_fps, video_output)
     if code != 0:
         return code
-    print(f"[ok] training progress video: {video_output}")
+    print(f"[ok] training progress video: {video_output}", flush=True)
     return 0
 
 

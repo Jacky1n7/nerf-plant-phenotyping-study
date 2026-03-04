@@ -1,8 +1,9 @@
 PYTHON ?= python
 DATASET ?= maize_plant_01
 CONFIG ?= configs/pipeline.toml
+CONDA_ENV ?= nerf
 
-.PHONY: help bootstrap init check frames dry-run run traits
+.PHONY: help bootstrap init check frames dry-run run run-live traits
 
 help:
 	@echo "Targets:"
@@ -12,6 +13,7 @@ help:
 	@echo "  make frames DATASET=<name>    # Extract frames from raw video only"
 	@echo "  make dry-run DATASET=<name>   # Print commands without execution"
 	@echo "  make run DATASET=<name>       # Execute full pipeline"
+	@echo "  make run-live DATASET=<name>  # Execute with unbuffered live logs via conda"
 	@echo "  make traits DATASET=<name>    # Re-run trait extraction only"
 
 bootstrap:
@@ -31,6 +33,9 @@ dry-run:
 
 run:
 	$(PYTHON) scripts/pipeline.py --config $(CONFIG) run --dataset $(DATASET)
+
+run-live:
+	conda run --no-capture-output -n $(CONDA_ENV) $(PYTHON) scripts/pipeline.py --config $(CONFIG) run --dataset $(DATASET)
 
 traits:
 	$(PYTHON) scripts/extract_traits.py \
