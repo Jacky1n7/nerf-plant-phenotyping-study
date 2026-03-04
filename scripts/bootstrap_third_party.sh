@@ -24,7 +24,9 @@ Third-party repos are ready.
 Next:
 1) Build instant-ngp following upstream docs.
 2) Install Python deps: pip install -r requirements.txt
-3) Run:
+3) (Optional mip-nerf360 backend) install nerfstudio:
+   pip install "nerfstudio>=1.1"
+4) Run:
    make init DATASET=<dataset_id>
    make check DATASET=<dataset_id>
    make run DATASET=<dataset_id>

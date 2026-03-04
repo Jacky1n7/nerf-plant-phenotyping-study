@@ -107,17 +107,19 @@ def latest_image(path: Path) -> Path | None:
     ]
     if not candidates:
         return None
-    return sorted(candidates)[0]
+    return sorted(candidates)[-1]
 
 
 def make_video(ffmpeg_bin: str, frames_dir: Path, fps: int, output_path: Path) -> int:
-    frame_pattern = frames_dir / "frame_%04d.png"
+    frame_pattern = frames_dir / "frame_*.*"
     cmd = [
         ffmpeg_bin,
         "-hide_banner",
         "-loglevel",
         "error",
         "-y",
+        "-pattern_type",
+        "glob",
         "-framerate",
         str(fps),
         "-i",
@@ -287,10 +289,8 @@ def main() -> int:
             image = latest_image(shot_dir)
             if image is None:
                 print(f"[warn] no screenshot generated for step={next_step}", flush=True)
-            elif image.suffix.lower() != ".png":
-                print(f"[warn] screenshot is not png ({image.name}); skipping video frame copy", flush=True)
             else:
-                frame_path = frames_dir / f"frame_{frame_index:04d}.png"
+                frame_path = frames_dir / f"frame_{frame_index:04d}{image.suffix.lower()}"
                 shutil.copy2(image, frame_path)
                 writer.writerow([frame_index, next_step])
 
@@ -301,8 +301,8 @@ def main() -> int:
         print("[info] video generation disabled", flush=True)
         return 0
 
-    png_frames = sorted(frames_dir.glob("frame_*.png"))
-    if len(png_frames) < 2:
+    vis_frames = sorted(frames_dir.glob("frame_*.*"))
+    if len(vis_frames) < 2:
         print("[warn] less than 2 frames found; skip progress.mp4 generation", flush=True)
         return 0
 

@@ -8,19 +8,40 @@ outputs_dataset_dir = "outputs/maize_plant_01"
 notes = "Template dataset config. Copy this file for new datasets."
 
 [video]
-fps = 8
+fps = 6
 start_time = "00:00:00"
 end_time = "none"
-max_frames = 180
+max_frames = 140
 jpeg_quality = 2
-resize_width = -1
+resize_width = 1920
 resize_height = -1
 filename_prefix = "frame"
 start_number = 1
 overwrite = true
 
-[dehaze]
+[crop]
 enabled = true
+output_dir = "data/processed/maize_plant_01/images_cropped"
+overwrite = true
+x_min_ratio = 0.06
+x_max_ratio = 0.82
+y_min_ratio = 0.08
+y_max_ratio = 0.96
+mask_right_ratio = 0.22
+mask_bottom_ratio = 0.30
+
+[frame_filter]
+enabled = true
+output_dir = "data/processed/maize_plant_01/images_filtered"
+overwrite = true
+min_sharpness = 7.5
+min_images = 116
+min_index = 0
+max_index = 0
+topup_mode = "segment"
+
+[dehaze]
+enabled = false
 output_dir = "data/processed/maize_plant_01/images_dehazed"
 overwrite = true
 omega = 0.95
@@ -32,28 +53,30 @@ guided_eps = 0.001
 gamma = 1.0
 
 [colmap]
-data_type = "video"
+data_type = "individual"
 quality = "medium"
 single_camera = true
 use_gpu = true
 gpu_index = -1
-num_threads = -1
+num_threads = 6
 openblas_num_threads = 1
+extra_args = ""
 
 [reconstruction]
-aabb_scale = 16
-keep_colmap_coords = true
-ngp_steps = 50000
-marching_cubes_res = 256
+backend = "instant_ngp"
+aabb_scale = 8
+keep_colmap_coords = false
+ngp_steps = 80000
+marching_cubes_res = 512
 marching_cubes_density_thresh = 2.5
 near_distance = -1.0
-sharpen = 0.2
+sharpen = 0.0
 exposure = 0.0
-train_mode = "rfl_relax"
+train_mode = "nerf"
 rfl_warmup_steps = 1500
 rflrelax_begin_step = 15000
 rflrelax_end_step = 42000
-training_vis_enabled = true
+training_vis_enabled = false
 training_vis_chunk_steps = 5000
 training_vis_frame_index = 0
 training_vis_spp = 8
@@ -61,6 +84,17 @@ training_vis_width = 1280
 training_vis_height = 720
 training_vis_make_video = true
 training_vis_video_fps = 6
+
+[mipnerf360]
+train_bin = "ns-train"
+export_bin = "ns-export"
+method = "nerfacto"
+output_dir = "outputs/maize_plant_01/mipnerf360"
+config_link = "outputs/maize_plant_01/mipnerf360_latest_config.txt"
+export_method = "poisson"
+export_dir = "outputs/maize_plant_01/mipnerf360_export"
+train_extra_args = ""
+export_extra_args = ""
 
 [point_cloud]
 enabled = true

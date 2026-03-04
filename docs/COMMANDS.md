@@ -20,7 +20,7 @@ make check DATASET=maize_plant_01
 make run DATASET=maize_plant_01
 ```
 
-如果你想在终端稳定看到实时训练进度（避免 conda 输出缓存）：
+如果你想在终端稳定看到实时训练进度（避免输出缓存）：
 
 ```bash
 make run-live DATASET=maize_plant_01
@@ -54,22 +54,13 @@ python scripts/pipeline.py \
   --stages train_instant_ngp,export_geometry,extract_dense_point_cloud,extract_traits
 ```
 
-只跑训练（含训练过程可视化）：
+只跑训练：
 
 ```bash
 python scripts/pipeline.py \
   --config configs/pipeline.toml run \
   --dataset maize_plant_01 \
   --stages train_instant_ngp
-```
-
-训练可视化输出目录：
-
-```text
-outputs/maize_plant_01/training_vis/
-├── frames/             # 分段截图
-├── progress_steps.csv  # 帧号与训练步数映射
-└── progress.mp4        # 训练过程视频
 ```
 
 只提取密集点云：
@@ -86,13 +77,10 @@ make dense-cloud DATASET=maize_plant_01
 cat outputs/maize_plant_01/traits.csv
 ```
 
-看 NeRF（GUI）：
+看 NeRF（GUI，中文增强启动器）：
 
 ```bash
-python third_party/instant-ngp/scripts/run.py \
-  --scene data/processed/maize_plant_01 \
-  --load_snapshot outputs/maize_plant_01/instant-ngp.msgpack \
-  --gui
+make view-gui DATASET=maize_plant_01
 ```
 
 看网格：

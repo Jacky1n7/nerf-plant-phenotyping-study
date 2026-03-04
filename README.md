@@ -9,33 +9,26 @@
 
 # NeRF 植物三维重建与表型提取
 
-这个仓库包含两部分：
-- 论文草稿（`manuscript/`）
-- 可运行流水线（`configs/` + `scripts/` + `Makefile`）
+这个仓库用于把植株环拍视频重建为 3D 几何，并提取基础表型指标。
 
-目标是把 360 度植株环拍视频，稳定转成：
-- NeRF 模型快照
-- 网格模型
-- 基础表型指标
+核心产物：
+- `outputs/<dataset_id>/instant-ngp.msgpack`
+- `outputs/<dataset_id>/mesh.ply`
+- `outputs/<dataset_id>/dense_point_cloud.ply`
+- `outputs/<dataset_id>/traits.csv`
 
 ## 当前状态（2026-03-04）
 
-`maize_plant_01` 已完成多轮重跑，当前流程已稳定到：
-- 输入：360 视频自动抽帧（帧数随视频时长与 `fps` 动态变化）
-- 产物：`instant-ngp.msgpack` + `mesh.ply` + `dense_point_cloud.ply` + `traits.csv`
-- 命令：支持全流程一键重跑与分阶段续跑
+- 当前推荐与默认流程：`instant-ngp`
+- `maize_plant_01` 已完成多轮优化，当前配置重点是：
+  - 裁剪 + 模糊帧筛选（尽量保留有效帧）
+  - COLMAP 自动选择注册帧最多的 sparse 子模型
+  - 全流程终端输出已中文化
+- mip-nerf360 相关环境已清理，不作为当前建议路径
 
-说明：`traits.csv` 目前仍属于重建坐标系下的相对量，后续可接入物理尺度标定。
+## 环境准备
 
-## 成果展示（更新视频）
-
-| View 1 | View 2 |
-| --- | --- |
-| ![maize_plant_01 result view 1](assets/results/maize_plant_01_result_view_01.png) | ![maize_plant_01 result view 2](assets/results/maize_plant_01_result_view_02.png) |
-
-## 推荐环境（Conda）
-
-建议使用 Python 3.11：
+建议 Python 3.11：
 
 ```bash
 conda create -n nerf python=3.11 -y
@@ -48,7 +41,7 @@ make bootstrap
 - `COLMAP`
 - `ffmpeg`
 
-如果要用 instant-ngp GUI（`--gui`），建议在 `nerf` 环境补齐 OpenGL/X11 包：
+如果需要打开 instant-ngp GUI（`--gui`），建议安装 OpenGL/X11 依赖：
 
 ```bash
 conda install -n nerf -c conda-forge \
@@ -56,7 +49,7 @@ conda install -n nerf -c conda-forge \
   xorg-libxrandr xorg-libxi xorg-libxinerama xorg-libxcursor
 ```
 
-## 数据目录（视频优先）
+## 数据目录
 
 初始化数据集：
 
@@ -64,37 +57,32 @@ conda install -n nerf -c conda-forge \
 make init DATASET=maize_plant_01
 ```
 
-目录结构：
-
-```text
-data/raw/maize_plant_01/
-├── video/      # 原始视频
-└── images/     # 抽帧结果（可自动生成）
-```
-
-默认视频路径：
+默认输入视频：
 
 ```text
 data/raw/<dataset_id>/video/capture.mp4
 ```
 
-如果视频文件名不同，修改 `configs/datasets/<dataset_id>.toml` 中 `dataset.video_input`。  
-也可以把 `video_input` 设成 `auto`，脚本会在 `video_dir` 下自动识别单个视频。
+如果文件名不同，改 `configs/datasets/<dataset_id>.toml` 的 `dataset.video_input`。
 
-## 指令集（常用）
-
-全流程（推荐）：
+## 一键运行（推荐）
 
 ```bash
 make check DATASET=maize_plant_01
 make run DATASET=maize_plant_01
 ```
 
-如果终端看不到实时训练进度（常见于 `conda run` 输出缓存），用：
+如果你希望实时看到训练日志（避免输出缓冲）：
 
 ```bash
 make run-live DATASET=maize_plant_01
 ```
+
+说明：
+- `colmap` 阶段会自动清理旧的 `colmap/`、`colmap_text/`、`transforms.json`
+- `pipeline.py run` 的主提示为中文（阶段、执行、错误、完成）
+
+## 常用分阶段命令
 
 只抽帧：
 
@@ -102,13 +90,7 @@ make run-live DATASET=maize_plant_01
 make frames DATASET=maize_plant_01
 ```
 
-只看将执行的命令（不实际运行）：
-
-```bash
-make dry-run DATASET=maize_plant_01
-```
-
-只重做位姿与 transforms（换视频后常用）：
+只重做位姿 + transforms：
 
 ```bash
 python scripts/pipeline.py \
@@ -132,78 +114,52 @@ python scripts/pipeline.py \
 make dense-cloud DATASET=maize_plant_01
 ```
 
-说明：`colmap` 阶段现在会自动清理旧的 `colmap/`、`colmap_text/` 与 `transforms.json`，避免重跑时读到过期索引导致 `frame_xxxxxx.jpg` 缺失报错。
+## 结果查看
 
-## 训练过程可视化
-
-已接入“分段训练 + 自动截图 + 自动合成视频”。
-
-默认输出：
-- 逐段截图：`outputs/<dataset_id>/training_vis/frames/frame_0001.png` ...
-- 步数映射：`outputs/<dataset_id>/training_vis/progress_steps.csv`
-- 进度视频：`outputs/<dataset_id>/training_vis/progress.mp4`
-
-开关在 `configs/datasets/<dataset_id>.toml` 的 `[reconstruction]`：
-- `training_vis_enabled = true|false`
-- `training_vis_chunk_steps`（每多少步截图一次）
-- `training_vis_video_fps`
-
-说明：开启后训练总耗时会略增加（因为每个 chunk 会额外导出一张渲染图）。
-
-已开放精度相关参数（同样位于 `[reconstruction]`）：
-- `train_mode`（推荐 `rfl_relax`）
-- `rfl_warmup_steps`
-- `rflrelax_begin_step` / `rflrelax_end_step`
-- `near_distance`
-- `sharpen`
-- `marching_cubes_density_thresh`
-
-去云雾开关在 `[dehaze]`，并会自动让 COLMAP 与 transforms 使用去云雾后的图像目录。
-
-## 如何查看成果
-
-1. 看指标表：
+看指标：
 
 ```bash
 cat outputs/maize_plant_01/traits.csv
 ```
 
-2. 看 NeRF（GUI）：
+看 NeRF（GUI，中文增强启动器）：
 
 ```bash
-python third_party/instant-ngp/scripts/run.py \
-  --scene data/processed/maize_plant_01 \
-  --load_snapshot outputs/maize_plant_01/instant-ngp.msgpack \
-  --gui
+make view-gui DATASET=maize_plant_01
 ```
 
-3. 看网格（MeshLab/CloudCompare）：
+看网格：
 
 ```bash
 meshlab outputs/maize_plant_01/mesh.ply
-```
-
-或：
-
-```bash
+# 或
 cloudcompare outputs/maize_plant_01/mesh.ply
 ```
 
-4. 看密集点云：
+看密集点云：
 
 ```bash
 cloudcompare outputs/maize_plant_01/dense_point_cloud.ply
 ```
 
-## 常见问题与处理
+## 去云雾策略（当前建议）
 
-1. 报错：`ModuleNotFoundError: No module named 'pyngp'`
+当前 `maize_plant_01` 配置里 `dehaze.enabled = false`（默认关闭）。
+
+建议做法：
+1. 先以默认配置跑通完整流程，确认基线效果。
+2. 如果场景确实有明显雾化/泛白，再开启 `dehaze` 并重跑 `colmap,colmap_to_text,transforms`。
+3. 对比注册帧数、点云噪声和叶片边缘细节，再决定是否用于正式训练。
+
+## 常见问题
+
+1. `ModuleNotFoundError: No module named pyngp`
 - 原因：instant-ngp Python 绑定未编译。
-- 处理：重新编译 `third_party/instant-ngp/build`，并执行 `make check`。
+- 处理：重新编译 `third_party/instant-ngp/build`，然后执行 `make check`。
 
-2. 报错：`No training images were found for NeRF training`
+2. `No training images were found for NeRF training`
 - 原因：`transforms.json` 中 `file_path` 不可解析。
-- 处理：已接入自动修复脚本，可手动执行：
+- 处理：
 
 ```bash
 python scripts/fix_transforms_paths.py \
@@ -211,72 +167,22 @@ python scripts/fix_transforms_paths.py \
   --project-root .
 ```
 
-3. 报错：`NGP was built without GUI support`
-- 原因：编译时 `NGP_BUILD_WITH_GUI=OFF` 或缺 OpenGL/X11 依赖。
-- 处理：安装 GUI 依赖后重编 instant-ngp。
+3. `imread(...frame_xxxxxx.jpg)` + `cvtColor ... !_src.empty()`
+- 原因：常见于换视频后仍引用了旧 COLMAP 中间结果。
+- 处理：重跑
 
-4. 训练时终端“看起来没输出”
-- 原因：`conda run -n ...` 下 `tqdm` 进度条可能不刷新。
-- 建议：激活环境后直接运行 `python ...`。
+```bash
+python scripts/pipeline.py \
+  --config configs/pipeline.toml run \
+  --dataset <dataset_id> \
+  --stages colmap,colmap_to_text,transforms
+```
 
-5. COLMAP 中出现 `CHOLMOD warning: Matrix not positive definite`
-- 通常是 BA 阶段常见告警，不等于立即失败。
-- 重点看流程是否继续推进到 `colmap_to_text` / `transforms` / `train`。
+4. `NGP was built without GUI support`
+- 原因：GUI 依赖不完整或编译时关闭 GUI。
+- 处理：安装 GUI 依赖后重新编译 instant-ngp。
 
-6. 报错：`imread(...frame_xxxxxx.jpg): can't open/read file` + `cvtColor ... !_src.empty()`
-- 原因：`colmap_text/images.txt` 里的帧索引与当前 `data/raw/<dataset>/images` 不一致（典型于换视频后沿用旧 COLMAP 工作目录）。
-- 处理：直接重跑 `colmap,colmap_to_text,transforms` 或 `make run`（当前流程已在 colmap 前自动清理旧中间产物）。
-
-## 常用参数（数据集配置）
-
-配置文件：`configs/datasets/<dataset_id>.toml`
-
-视频参数（`[video]`）：
-- `fps`
-- `start_time`
-- `end_time`
-- `max_frames`
-- `resize_width` / `resize_height`
-- `overwrite`
-
-COLMAP 参数（`[colmap]`）：
-- `data_type`
-- `quality`
-- `single_camera`
-- `use_gpu`
-- `gpu_index`
-- `num_threads`
-- `openblas_num_threads`
-
-重建参数（`[reconstruction]`）：
-- `aabb_scale`
-- `ngp_steps`
-- `marching_cubes_res`
-- `marching_cubes_density_thresh`
-- `keep_colmap_coords`
-- `train_mode`
-- `rfl_warmup_steps`
-- `rflrelax_begin_step` / `rflrelax_end_step`
-- `near_distance`
-- `sharpen`
-
-去云雾参数（`[dehaze]`）：
-- `enabled`
-- `output_dir`
-- `omega`
-- `window_size`
-- `min_transmission`
-- `guided_radius`
-
-密集点云参数（`[point_cloud]`）：
-- `enabled`
-- `num_points`
-- `seed`
-
-表型参数（`[traits]`）：
-- `vertical_axis`
-
-## 输出位置
+## 输出与日志位置
 
 - 运行日志：`outputs/runs/<dataset_id>/pipeline.log`
 - 快照：`outputs/<dataset_id>/instant-ngp.msgpack`
@@ -285,48 +191,9 @@ COLMAP 参数（`[colmap]`）：
 - 指标：`outputs/<dataset_id>/traits.csv`
 - 训练可视化：`outputs/<dataset_id>/training_vis/`
 
-## 实验记录
+## 相关文档
 
-- 总日志：[docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
-- 单次模板：[docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
 - 命令速查：[docs/COMMANDS.md](./docs/COMMANDS.md)
+- 实验日志：[docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
+- 单次实验模板：[docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
 - 第一轮优化说明：[docs/OPTIMIZATION_ROUND1.md](./docs/OPTIMIZATION_ROUND1.md)
-
-## 项目结构
-
-```text
-.
-├── assets/
-├── configs/
-│   ├── pipeline.toml
-│   └── datasets/
-├── docs/
-│   ├── COMMANDS.md
-│   ├── EXPERIMENT_LOG.md
-│   └── EXPERIMENT_RUN_TEMPLATE.md
-├── manuscript/
-├── scripts/
-│   ├── bootstrap_third_party.sh
-│   ├── pipeline.py
-│   ├── extract_video_frames.py
-│   ├── dehaze_images.py
-│   ├── fix_transforms_paths.py
-│   ├── render_mesh_preview.py
-│   ├── extract_dense_point_cloud.py
-│   └── extract_traits.py
-├── src/
-│   └── nerf_plant_pipeline/
-├── Makefile
-├── requirements.txt
-├── README.md
-├── README.en.md
-└── manuscript_package.tar.gz
-```
-
-## 论文本地编译
-
-```bash
-cd manuscript
-/Library/TeX/texbin/xelatex -interaction=nonstopmode nerf_plant_reconstruction.tex
-/Library/TeX/texbin/xelatex -interaction=nonstopmode nerf_plant_reconstruction.tex
-```

@@ -19,8 +19,29 @@ filename_prefix = "frame"
 start_number = 1
 overwrite = false
 
+[crop]
+enabled = false
+output_dir = "data/processed/dataset_name/images_cropped"
+overwrite = true
+x_min_ratio = 0.0
+x_max_ratio = 1.0
+y_min_ratio = 0.0
+y_max_ratio = 1.0
+mask_right_ratio = 0.0
+mask_bottom_ratio = 0.0
+
+[frame_filter]
+enabled = false
+output_dir = "data/processed/dataset_name/images_filtered"
+overwrite = true
+min_sharpness = 8.0
+min_images = 80
+min_index = 0
+max_index = 0
+topup_mode = "segment"
+
 [dehaze]
-enabled = true
+enabled = false
 output_dir = "data/processed/dataset_name/images_dehazed"
 overwrite = true
 omega = 0.95
@@ -39,17 +60,19 @@ use_gpu = true
 gpu_index = -1
 num_threads = -1
 openblas_num_threads = 1
+extra_args = ""
 
 [reconstruction]
+backend = "instant_ngp"
 aabb_scale = 16
-keep_colmap_coords = true
+keep_colmap_coords = false
 ngp_steps = 35000
 marching_cubes_res = 512
 marching_cubes_density_thresh = 2.5
 near_distance = -1.0
 sharpen = 0.0
 exposure = 0.0
-train_mode = "rfl_relax"
+train_mode = "nerf"
 rfl_warmup_steps = 1000
 rflrelax_begin_step = 15000
 rflrelax_end_step = 30000
@@ -61,6 +84,17 @@ training_vis_width = 1280
 training_vis_height = 720
 training_vis_make_video = true
 training_vis_video_fps = 6
+
+[mipnerf360]
+train_bin = "ns-train"
+export_bin = "ns-export"
+method = "nerfacto"
+output_dir = "outputs/dataset_name/mipnerf360"
+config_link = "outputs/dataset_name/mipnerf360_latest_config.txt"
+export_method = "poisson"
+export_dir = "outputs/dataset_name/mipnerf360_export"
+train_extra_args = ""
+export_extra_args = ""
 
 [point_cloud]
 enabled = true

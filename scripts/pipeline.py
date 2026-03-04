@@ -18,6 +18,20 @@ import tomllib
 ROOT_DIR = Path(__file__).resolve().parents[1]
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".m4v"}
+STAGE_LABELS = {
+    "prepare_dirs": "准备目录",
+    "extract_video_frames": "视频抽帧",
+    "crop_images": "图像裁剪",
+    "filter_frames": "帧筛选",
+    "dehaze_images": "去云雾",
+    "colmap": "COLMAP重建",
+    "colmap_to_text": "模型转文本",
+    "transforms": "生成transforms",
+    "train_instant_ngp": "训练重建模型",
+    "export_geometry": "导出几何",
+    "extract_dense_point_cloud": "提取密集点云",
+    "extract_traits": "提取表型指标",
+}
 
 
 def load_toml(path: Path) -> dict:
@@ -69,13 +83,23 @@ def text_to_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def stage_display_name(stage: str) -> str:
+    label = STAGE_LABELS.get(stage)
+    if label:
+        return f"{label} ({stage})"
+    return stage
+
+
 def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[str, str]:
     paths = config.get("paths", {})
     dataset = dataset_cfg.get("dataset", {})
     video = dataset_cfg.get("video", {})
+    crop = dataset_cfg.get("crop", {})
+    frame_filter = dataset_cfg.get("frame_filter", {})
     dehaze = dataset_cfg.get("dehaze", {})
     colmap = dataset_cfg.get("colmap", {})
     recon = dataset_cfg.get("reconstruction", {})
+    mip = dataset_cfg.get("mipnerf360", {})
     point_cloud = dataset_cfg.get("point_cloud", {})
     traits = dataset_cfg.get("traits", {})
 
@@ -85,11 +109,15 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     outputs_dataset_dir = as_abs(dataset.get("outputs_dataset_dir", f"outputs/{dataset_name}"))
     run_dir = as_abs(Path(paths.get("runs_dir", "outputs/runs")) / dataset_name)
 
-    keep_colmap_coords = bool(recon.get("keep_colmap_coords", True))
+    keep_colmap_coords = bool(recon.get("keep_colmap_coords", False))
+    recon_backend = str(recon.get("backend", "instant_ngp")).strip().lower()
     overwrite_frames = bool(video.get("overwrite", False))
+    crop_enabled = bool(crop.get("enabled", False))
+    frame_filter_enabled = bool(frame_filter.get("enabled", False))
     dehaze_enabled = bool(dehaze.get("enabled", False))
     colmap_single_camera = bool(colmap.get("single_camera", True))
     colmap_use_gpu = bool(colmap.get("use_gpu", True))
+    colmap_extra_args = str(colmap.get("extra_args", "")).strip()
     training_vis_enabled = bool(recon.get("training_vis_enabled", False))
     training_vis_make_video = bool(recon.get("training_vis_make_video", True))
     point_cloud_enabled = bool(point_cloud.get("enabled", True))
@@ -100,10 +128,19 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
     else:
         video_input = "auto"
 
-    dehazed_images_dir = as_abs(
-        dehaze.get("output_dir", str(workspace_dir / "images_dehazed"))
+    cropped_images_dir = as_abs(crop.get("output_dir", str(workspace_dir / "images_cropped")))
+    frame_filter_input_dir = cropped_images_dir if crop_enabled else images_dir
+    filtered_images_dir = as_abs(frame_filter.get("output_dir", str(workspace_dir / "images_filtered")))
+    preprocess_images_dir = filtered_images_dir if frame_filter_enabled else frame_filter_input_dir
+
+    dehazed_images_dir = as_abs(dehaze.get("output_dir", str(workspace_dir / "images_dehazed")))
+    dehaze_input_dir = preprocess_images_dir
+    recon_images_dir = dehazed_images_dir if dehaze_enabled else preprocess_images_dir
+    mip_output_dir = as_abs(mip.get("output_dir", str(outputs_dataset_dir / "mipnerf360")))
+    mip_config_link = as_abs(
+        mip.get("config_link", str(outputs_dataset_dir / "mipnerf360_latest_config.txt"))
     )
-    recon_images_dir = dehazed_images_dir if dehaze_enabled else images_dir
+    mip_export_dir = as_abs(mip.get("export_dir", str(outputs_dataset_dir / "mipnerf360_export")))
 
     return {
         "project_root": str(ROOT_DIR),
@@ -111,7 +148,12 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "video_dir": str(video_dir),
         "video_input": video_input,
         "images_dir": str(images_dir),
+        "cropped_images_dir": str(cropped_images_dir),
+        "frame_filter_input_dir": str(frame_filter_input_dir),
+        "filtered_images_dir": str(filtered_images_dir),
+        "preprocess_images_dir": str(preprocess_images_dir),
         "dehazed_images_dir": str(dehazed_images_dir),
+        "dehaze_input_dir": str(dehaze_input_dir),
         "recon_images_dir": str(recon_images_dir),
         "workspace_dir": str(workspace_dir),
         "outputs_dataset_dir": str(outputs_dataset_dir),
@@ -119,6 +161,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "instant_ngp_dir": str(as_abs(paths.get("instant_ngp_dir", "third_party/instant-ngp"))),
         "pointnerf_dir": str(as_abs(paths.get("pointnerf_dir", "third_party/pointnerf"))),
         "python_bin": paths.get("python_bin", "python"),
+        "recon_backend": recon_backend,
         "frame_fps": str(video.get("fps", 3.0)),
         "video_start_time": str(video.get("start_time", "00:00:00")),
         "video_end_time": str(video.get("end_time", "none")),
@@ -129,6 +172,21 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "frame_prefix": str(video.get("filename_prefix", "frame")),
         "frame_start_number": str(video.get("start_number", 1)),
         "overwrite_frames": bool_to_text(overwrite_frames),
+        "crop_enabled": bool_to_text(crop_enabled),
+        "crop_overwrite": bool_to_text(crop.get("overwrite", True)),
+        "crop_x_min_ratio": str(crop.get("x_min_ratio", 0.0)),
+        "crop_x_max_ratio": str(crop.get("x_max_ratio", 1.0)),
+        "crop_y_min_ratio": str(crop.get("y_min_ratio", 0.0)),
+        "crop_y_max_ratio": str(crop.get("y_max_ratio", 1.0)),
+        "crop_mask_right_ratio": str(crop.get("mask_right_ratio", 0.0)),
+        "crop_mask_bottom_ratio": str(crop.get("mask_bottom_ratio", 0.0)),
+        "frame_filter_enabled": bool_to_text(frame_filter_enabled),
+        "frame_filter_overwrite": bool_to_text(frame_filter.get("overwrite", True)),
+        "frame_filter_min_sharpness": str(frame_filter.get("min_sharpness", 8.0)),
+        "frame_filter_min_images": str(frame_filter.get("min_images", 60)),
+        "frame_filter_min_index": str(frame_filter.get("min_index", 0)),
+        "frame_filter_max_index": str(frame_filter.get("max_index", 0)),
+        "frame_filter_topup_mode": str(frame_filter.get("topup_mode", "segment")),
         "dehaze_enabled": bool_to_text(dehaze_enabled),
         "dehaze_overwrite": bool_to_text(dehaze.get("overwrite", False)),
         "dehaze_omega": str(dehaze.get("omega", 0.95)),
@@ -145,6 +203,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "colmap_gpu_index": str(colmap.get("gpu_index", -1)),
         "colmap_num_threads": str(colmap.get("num_threads", -1)),
         "openblas_num_threads": str(colmap.get("openblas_num_threads", 1)),
+        "colmap_extra_args": colmap_extra_args,
         "aabb_scale": str(recon.get("aabb_scale", 16)),
         "ngp_steps": str(recon.get("ngp_steps", 35000)),
         "marching_cubes_res": str(recon.get("marching_cubes_res", 512)),
@@ -152,7 +211,7 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "recon_near_distance": str(recon.get("near_distance", -1.0)),
         "recon_sharpen": str(recon.get("sharpen", 0.0)),
         "recon_exposure": str(recon.get("exposure", 0.0)),
-        "recon_train_mode": str(recon.get("train_mode", "rfl_relax")),
+        "recon_train_mode": str(recon.get("train_mode", "nerf")),
         "recon_rfl_warmup_steps": str(recon.get("rfl_warmup_steps", 1000)),
         "recon_rflrelax_begin_step": str(recon.get("rflrelax_begin_step", 15000)),
         "recon_rflrelax_end_step": str(recon.get("rflrelax_end_step", 30000)),
@@ -164,6 +223,15 @@ def build_context(config: dict, dataset_cfg: dict, dataset_name: str) -> dict[st
         "training_vis_height": str(recon.get("training_vis_height", 720)),
         "training_vis_video_fps": str(recon.get("training_vis_video_fps", 6)),
         "training_vis_make_video": bool_to_text(training_vis_make_video),
+        "mip_train_bin": str(mip.get("train_bin", "ns-train")),
+        "mip_export_bin": str(mip.get("export_bin", "ns-export")),
+        "mip_method": str(mip.get("method", "nerfacto")),
+        "mip_output_dir": str(mip_output_dir),
+        "mip_config_link": str(mip_config_link),
+        "mip_export_method": str(mip.get("export_method", "poisson")),
+        "mip_export_dir": str(mip_export_dir),
+        "mip_train_extra_args": str(mip.get("train_extra_args", "")),
+        "mip_export_extra_args": str(mip.get("export_extra_args", "")),
         "point_cloud_enabled": bool_to_text(point_cloud_enabled),
         "point_cloud_num_points": str(point_cloud.get("num_points", 1200000)),
         "point_cloud_seed": str(point_cloud.get("seed", 42)),
@@ -215,17 +283,17 @@ def list_pyngp_binaries(instant_ngp_dir: Path) -> list[Path]:
 
 def check_transforms_images(transforms_path: Path, project_root: Path) -> tuple[bool, str]:
     if not transforms_path.exists():
-        return False, f"missing file: {transforms_path}"
+        return False, f"缺少文件: {transforms_path}"
 
     try:
         with transforms_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as exc:
-        return False, f"invalid json: {exc}"
+        return False, f"JSON 解析失败: {exc}"
 
     frames = data.get("frames", [])
     if not isinstance(frames, list) or not frames:
-        return False, "no frames found in transforms.json"
+        return False, "transforms.json 中未找到有效的 frames"
 
     transforms_dir = transforms_path.parent
     missing = 0
@@ -246,8 +314,8 @@ def check_transforms_images(transforms_path: Path, project_root: Path) -> tuple[
             missing += 1
 
     if missing > 0:
-        return False, f"{missing}/{len(frames)} images are missing from paths in {transforms_path.name}"
-    return True, f"{len(frames)} images resolved from {transforms_path}"
+        return False, f"{transforms_path.name} 中有 {missing}/{len(frames)} 张图像路径无法解析"
+    return True, f"已成功解析 {len(frames)} 张图像路径: {transforms_path}"
 
 
 def first_token(cmd: str) -> str | None:
@@ -269,8 +337,8 @@ def check_binary(binary: str) -> bool:
 
 
 def print_check(label: str, ok: bool, detail: str) -> None:
-    flag = "PASS" if ok else "FAIL"
-    print(f"[{flag}] {label}: {detail}")
+    flag = "通过" if ok else "失败"
+    print(f"[检查-{flag}] {label}: {detail}")
 
 
 def cmd_init_dataset(args: argparse.Namespace) -> int:
@@ -282,15 +350,22 @@ def cmd_init_dataset(args: argparse.Namespace) -> int:
 
     Path(context["video_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["images_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["cropped_images_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["filtered_images_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["dehazed_images_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["mip_output_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(context["mip_export_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["workspace_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["outputs_dataset_dir"]).mkdir(parents=True, exist_ok=True)
     Path(context["run_dir"]).mkdir(parents=True, exist_ok=True)
 
-    print(f"[ok] dataset config: {dataset_path}")
-    print(f"[ok] video drop dir: {context['video_dir']}")
-    print(f"[ok] image drop dir: {context['images_dir']}")
-    print(f"[ok] dehaze image dir: {context['dehazed_images_dir']}")
+    print(f"[完成] 数据集配置: {dataset_path}")
+    print(f"[完成] 视频目录: {context['video_dir']}")
+    print(f"[完成] 原始图像目录: {context['images_dir']}")
+    print(f"[完成] 裁剪图像目录: {context['cropped_images_dir']}")
+    print(f"[完成] 筛选图像目录: {context['filtered_images_dir']}")
+    print(f"[完成] 去雾图像目录: {context['dehazed_images_dir']}")
+    print(f"[完成] Mip-NeRF360输出目录: {context['mip_output_dir']}")
     return 0
 
 
@@ -299,8 +374,8 @@ def cmd_check(args: argparse.Namespace) -> int:
     dataset_name = resolve_dataset_name(config, args.dataset)
     dataset_path = dataset_config_path(dataset_name)
     if not dataset_path.exists():
-        print(f"[error] dataset config not found: {dataset_path}", file=sys.stderr)
-        print("Run: make init DATASET=<dataset_id>", file=sys.stderr)
+        print(f"[错误] 找不到数据集配置: {dataset_path}", file=sys.stderr)
+        print("请先执行: make init DATASET=<dataset_id>", file=sys.stderr)
         return 1
 
     dataset_cfg = load_toml(dataset_path)
@@ -323,24 +398,24 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     images_ok = len(images) > 0
     if images_ok:
-        print_check("input images", True, f"{images_dir} ({len(images)} files)")
+        print_check("输入图像", True, f"{images_dir} ({len(images)} 个文件)")
     elif extraction_stage_enabled:
-        print_check("input images", True, f"{images_dir} (0 files, will be generated from video)")
+        print_check("输入图像", True, f"{images_dir} (当前 0 个文件，将从视频自动抽帧)")
     else:
-        print_check("input images", False, f"{images_dir} (0 files)")
+        print_check("输入图像", False, f"{images_dir} (当前 0 个文件)")
 
     if images_ok and not overwrite_frames:
-        print_check("video source", True, "images already exist; frame extraction can be skipped")
+        print_check("视频来源", True, "已存在输入图像，可跳过抽帧")
     elif extraction_stage_enabled:
         if video_input_text != "auto":
             video_input = Path(video_input_text)
             video_ok = video_input.exists()
-            print_check("video input", video_ok, str(video_input))
+            print_check("视频输入", video_ok, str(video_input))
             overall_ok = overall_ok and video_ok
         else:
             auto_ok = len(videos) == 1
-            detail = f"{video_dir} ({len(videos)} candidate files)"
-            print_check("video auto-discovery", auto_ok, detail)
+            detail = f"{video_dir} ({len(videos)} 个候选文件)"
+            print_check("视频自动发现", auto_ok, detail)
             overall_ok = overall_ok and auto_ok
     else:
         overall_ok = overall_ok and images_ok
@@ -356,13 +431,9 @@ def cmd_check(args: argparse.Namespace) -> int:
     overall_ok = overall_ok and python_ok
 
     train_related = {"train_instant_ngp", "export_geometry"}
-    if any(stage in train_related for stage in stages):
-        pyngp_bins = list_pyngp_binaries(Path(context["instant_ngp_dir"]))
-        pyngp_ok = len(pyngp_bins) > 0
-        detail = str(pyngp_bins[0]) if pyngp_ok else f"not found under {context['instant_ngp_dir']}/build*"
-        print_check("pyngp_binary", pyngp_ok, detail)
-        overall_ok = overall_ok and pyngp_ok
-
+    train_stages_selected = any(stage in train_related for stage in stages)
+    recon_backend = context.get("recon_backend", "instant_ngp").strip().lower()
+    if train_stages_selected:
         transforms_ok, transforms_detail = check_transforms_images(
             Path(context["workspace_dir"]) / "transforms.json",
             ROOT_DIR,
@@ -370,9 +441,33 @@ def cmd_check(args: argparse.Namespace) -> int:
         print_check("transforms_images", transforms_ok, transforms_detail)
         overall_ok = overall_ok and transforms_ok
 
+        if recon_backend == "instant_ngp":
+            pyngp_bins = list_pyngp_binaries(Path(context["instant_ngp_dir"]))
+            pyngp_ok = len(pyngp_bins) > 0
+            detail = str(pyngp_bins[0]) if pyngp_ok else f"未在 {context['instant_ngp_dir']}/build* 下找到"
+            print_check("pyngp_binary", pyngp_ok, detail)
+            overall_ok = overall_ok and pyngp_ok
+        elif recon_backend == "mipnerf360":
+            if "train_instant_ngp" in stages:
+                mip_train_ok = check_binary(context["mip_train_bin"])
+                print_check("mipnerf360.train_bin", mip_train_ok, context["mip_train_bin"])
+                overall_ok = overall_ok and mip_train_ok
+            if "export_geometry" in stages:
+                mip_export_ok = check_binary(context["mip_export_bin"])
+                print_check("mipnerf360.export_bin", mip_export_ok, context["mip_export_bin"])
+                overall_ok = overall_ok and mip_export_ok
+        else:
+            print_check("reconstruction.backend", False, f"不支持的后端: {recon_backend}")
+            overall_ok = False
+
     training_vis_enabled = text_to_bool(context.get("training_vis_enabled", "false"))
     training_vis_make_video = text_to_bool(context.get("training_vis_make_video", "false"))
-    if "train_instant_ngp" in stages and training_vis_enabled and training_vis_make_video:
+    if (
+        recon_backend == "instant_ngp"
+        and "train_instant_ngp" in stages
+        and training_vis_enabled
+        and training_vis_make_video
+    ):
         ffmpeg_ok = check_binary("ffmpeg")
         print_check("train_instant_ngp.ffmpeg", ffmpeg_ok, "ffmpeg")
         overall_ok = overall_ok and ffmpeg_ok
@@ -380,11 +475,11 @@ def cmd_check(args: argparse.Namespace) -> int:
     for stage in stages:
         stage_cfg = stages_cfg.get(stage)
         if not stage_cfg:
-            print_check(f"stage.{stage}", False, "missing stage in config")
+            print_check(f"stage.{stage}", False, "配置中缺少该阶段")
             overall_ok = False
             continue
         if not bool(stage_cfg.get("enabled", True)):
-            print_check(f"stage.{stage}", True, "disabled")
+            print_check(f"stage.{stage}", True, "已禁用")
             continue
 
         required_tools = stage_cfg.get("required_tools", [])
@@ -398,7 +493,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             cmd = format_command(template, context)
             token = first_token(cmd)
             if token is None:
-                print_check(f"{stage}.cmd{idx}", False, "empty command")
+                print_check(f"{stage}.cmd{idx}", False, "命令为空")
                 overall_ok = False
                 continue
             ok = check_binary(token)
@@ -406,9 +501,9 @@ def cmd_check(args: argparse.Namespace) -> int:
             overall_ok = overall_ok and ok
 
     if not overall_ok:
-        print("[error] check failed. Fix failures above before running pipeline.")
+        print("[错误] 环境检查未通过，请先修复上述问题后再执行流水线。")
         return 1
-    print("[ok] environment check passed.")
+    print("[完成] 环境检查通过。")
     return 0
 
 
@@ -430,8 +525,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     dataset_name = resolve_dataset_name(config, args.dataset)
     dataset_path = dataset_config_path(dataset_name)
     if not dataset_path.exists():
-        print(f"[error] dataset config not found: {dataset_path}", file=sys.stderr)
-        print("Run: make init DATASET=<dataset_id>", file=sys.stderr)
+        print(f"[错误] 找不到数据集配置: {dataset_path}", file=sys.stderr)
+        print("请先执行: make init DATASET=<dataset_id>", file=sys.stderr)
         return 1
 
     dataset_cfg = load_toml(dataset_path)
@@ -441,46 +536,48 @@ def cmd_run(args: argparse.Namespace) -> int:
     log_path = Path(context["run_dir"]) / "pipeline.log"
     start_time = dt.datetime.now().isoformat(timespec="seconds")
 
-    append_log(log_path, f"=== run start {start_time} dataset={dataset_name} dry_run={args.dry_run} ===")
-    print(f"[info] dataset={dataset_name}")
-    print(f"[info] stages={','.join(stages)}")
-    print(f"[info] log={log_path}")
+    append_log(log_path, f"=== 开始运行 {start_time} dataset={dataset_name} dry_run={args.dry_run} ===")
+    stage_text = ", ".join(stage_display_name(s) for s in stages)
+    print(f"[信息] 数据集: {dataset_name}")
+    print(f"[信息] 执行阶段: {stage_text}")
+    print(f"[信息] 日志文件: {log_path}")
 
     for stage in stages:
         stage_cfg = stages_cfg.get(stage)
         if not stage_cfg:
-            msg = f"[error] missing stage config: {stage}"
+            msg = f"[错误] 缺少阶段配置: {stage}"
             print(msg)
             append_log(log_path, msg)
             return 1
         if not bool(stage_cfg.get("enabled", True)):
-            msg = f"[skip] stage {stage} disabled."
+            msg = f"[跳过] 阶段已禁用: {stage_display_name(stage)}"
             print(msg)
             append_log(log_path, msg)
             continue
 
-        print(f"[stage] {stage}")
-        append_log(log_path, f"[stage] {stage}")
+        stage_title = stage_display_name(stage)
+        print(f"[阶段] {stage_title}")
+        append_log(log_path, f"[阶段] {stage_title}")
         commands = stage_cfg.get("commands", [])
 
         for idx, template in enumerate(commands, start=1):
             cmd = format_command(template, context)
-            prefix = "[dry-run]" if args.dry_run else "[exec]"
+            prefix = "[演练]" if args.dry_run else "[执行]"
             line = f"{prefix} ({stage}.{idx}) {cmd}"
             print(line)
             append_log(log_path, line)
 
             code = run_command(cmd, args.dry_run)
             if code != 0:
-                err = f"[error] command failed with exit code {code}: {cmd}"
+                err = f"[错误] 命令执行失败，退出码 {code}: {cmd}"
                 print(err)
                 append_log(log_path, err)
                 if not args.continue_on_error:
                     return code
 
     end_time = dt.datetime.now().isoformat(timespec="seconds")
-    append_log(log_path, f"=== run end {end_time} ===")
-    print("[ok] pipeline finished.")
+    append_log(log_path, f"=== 运行结束 {end_time} ===")
+    print("[完成] 流水线执行结束。")
     return 0
 
 

@@ -3,7 +3,7 @@ DATASET ?= maize_plant_01
 CONFIG ?= configs/pipeline.toml
 CONDA_ENV ?= nerf
 
-.PHONY: help bootstrap init check frames dry-run run run-live traits dense-cloud
+.PHONY: help bootstrap init check frames dry-run run run-live view-gui traits dense-cloud
 
 help:
 	@echo "Targets:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make dry-run DATASET=<name>   # Print commands without execution"
 	@echo "  make run DATASET=<name>       # Execute full pipeline"
 	@echo "  make run-live DATASET=<name>  # Execute with unbuffered live logs via conda"
+	@echo "  make view-gui DATASET=<name>  # Launch instant-ngp GUI with Chinese terminal UI"
 	@echo "  make traits DATASET=<name>    # Re-run trait extraction only"
 	@echo "  make dense-cloud DATASET=<name> # Re-export dense point cloud from mesh"
 
@@ -37,6 +38,9 @@ run:
 
 run-live:
 	conda run --no-capture-output -n $(CONDA_ENV) $(PYTHON) scripts/pipeline.py --config $(CONFIG) run --dataset $(DATASET)
+
+view-gui:
+	$(PYTHON) scripts/launch_ngp_gui.py --config $(CONFIG) --dataset $(DATASET)
 
 traits:
 	$(PYTHON) scripts/extract_traits.py \
