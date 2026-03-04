@@ -20,33 +20,18 @@
 
 ## 当前状态（2026-03-04）
 
-`maize_plant_01` 已经跑通到最终产物，关键结果：
-- 输入：360 视频抽帧 163 张
-- 快照：`outputs/maize_plant_01/instant-ngp.msgpack`
-- 网格：`outputs/maize_plant_01/mesh.ply`
-- 指标：`outputs/maize_plant_01/traits.csv`
+`maize_plant_01` 已完成多轮重跑，当前流程已稳定到：
+- 输入：360 视频自动抽帧（帧数随视频时长与 `fps` 动态变化）
+- 产物：`instant-ngp.msgpack` + `mesh.ply` + `traits.csv`
+- 命令：支持全流程一键重跑与分阶段续跑
 
-当前 `traits.csv`（示例）：
-- `height_cm=4839.0039`
-- `width_cm=4839.0079`
-- `depth_cm=4839.0051`
-- `point_count=20452419`
+说明：`traits.csv` 目前仍属于重建坐标系下的相对量，后续可接入物理尺度标定。
 
-说明：该数值还未做真实尺度标定，属于重建坐标系下的相对量。
+## 成果展示（更新视频）
 
-## 成果展示（本轮）
-
-![maize_plant_01 三维重建预览](assets/results/maize_plant_01_preview.png)
-
-如果要重新生成预览图：
-
-```bash
-python scripts/render_mesh_preview.py \
-  --input outputs/maize_plant_01/mesh.ply \
-  --output assets/results/maize_plant_01_preview.png \
-  --dataset maize_plant_01 \
-  --transforms data/processed/maize_plant_01/transforms.json
-```
+| View 1 | View 2 |
+| --- | --- |
+| ![maize_plant_01 result view 1](assets/results/maize_plant_01_result_view_01.png) | ![maize_plant_01 result view 2](assets/results/maize_plant_01_result_view_02.png) |
 
 ## 推荐环境（Conda）
 
@@ -96,33 +81,37 @@ data/raw/<dataset_id>/video/capture.mp4
 如果视频文件名不同，修改 `configs/datasets/<dataset_id>.toml` 中 `dataset.video_input`。  
 也可以把 `video_input` 设成 `auto`，脚本会在 `video_dir` 下自动识别单个视频。
 
-## 运行流程
+## 指令集（常用）
 
-1. 环境检查：
+全流程（推荐）：
 
 ```bash
 make check DATASET=maize_plant_01
+make run DATASET=maize_plant_01
 ```
 
-2. 仅抽帧（可选）：
+只抽帧：
 
 ```bash
 make frames DATASET=maize_plant_01
 ```
 
-3. 全流程运行：
-
-```bash
-make run DATASET=maize_plant_01
-```
-
-4. 只查看命令（不执行）：
+只看将执行的命令（不实际运行）：
 
 ```bash
 make dry-run DATASET=maize_plant_01
 ```
 
-5. 断点续跑（只从训练开始）：
+只重做位姿与 transforms（换视频后常用）：
+
+```bash
+python scripts/pipeline.py \
+  --config configs/pipeline.toml run \
+  --dataset maize_plant_01 \
+  --stages colmap,colmap_to_text,transforms
+```
+
+从训练开始续跑：
 
 ```bash
 python scripts/pipeline.py \
@@ -130,6 +119,8 @@ python scripts/pipeline.py \
   --dataset maize_plant_01 \
   --stages train_instant_ngp,export_geometry,extract_traits
 ```
+
+说明：`colmap` 阶段现在会自动清理旧的 `colmap/`、`colmap_text/` 与 `transforms.json`，避免重跑时读到过期索引导致 `frame_xxxxxx.jpg` 缺失报错。
 
 ## 如何查看成果
 
@@ -188,6 +179,10 @@ python scripts/fix_transforms_paths.py \
 - 通常是 BA 阶段常见告警，不等于立即失败。
 - 重点看流程是否继续推进到 `colmap_to_text` / `transforms` / `train`。
 
+6. 报错：`imread(...frame_xxxxxx.jpg): can't open/read file` + `cvtColor ... !_src.empty()`
+- 原因：`colmap_text/images.txt` 里的帧索引与当前 `data/raw/<dataset>/images` 不一致（典型于换视频后沿用旧 COLMAP 工作目录）。
+- 处理：直接重跑 `colmap,colmap_to_text,transforms` 或 `make run`（当前流程已在 colmap 前自动清理旧中间产物）。
+
 ## 常用参数（数据集配置）
 
 配置文件：`configs/datasets/<dataset_id>.toml`
@@ -229,6 +224,7 @@ COLMAP 参数（`[colmap]`）：
 
 - 总日志：[docs/EXPERIMENT_LOG.md](./docs/EXPERIMENT_LOG.md)
 - 单次模板：[docs/EXPERIMENT_RUN_TEMPLATE.md](./docs/EXPERIMENT_RUN_TEMPLATE.md)
+- 命令速查：[docs/COMMANDS.md](./docs/COMMANDS.md)
 
 ## 项目结构
 
@@ -239,6 +235,7 @@ COLMAP 参数（`[colmap]`）：
 │   ├── pipeline.toml
 │   └── datasets/
 ├── docs/
+│   ├── COMMANDS.md
 │   ├── EXPERIMENT_LOG.md
 │   └── EXPERIMENT_RUN_TEMPLATE.md
 ├── manuscript/
